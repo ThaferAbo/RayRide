@@ -1990,6 +1990,7 @@ class _TourBookingScreenState extends State<TourBookingScreen> {
 
                 const Spacer(),
 
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
