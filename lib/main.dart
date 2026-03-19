@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'models/login_request.dart';
+import 'models/register_request.dart';
+import 'services/auth_service.dart';
+
 void main() {
   runApp(const RayRideApp());
 }
+
+bool _isWideScreen(BuildContext context) =>
+    MediaQuery.of(context).size.width > 900;
 
 class RayRideApp extends StatelessWidget {
   const RayRideApp({super.key});
@@ -28,12 +35,189 @@ class RayRideApp extends StatelessWidget {
   }
 }
 
-// ================== 1. SIGN IN SCREEN ==================
-class SignInScreen extends StatelessWidget {
-  const SignInScreen({super.key});
+// ================== WEB NAVIGATION BAR ==================
+class _WebNavBar extends StatelessWidget {
+  final String currentRoute;
+  const _WebNavBar({this.currentRoute = ''});
 
   @override
   Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A2137),
+        border: Border(bottom: BorderSide(color: Colors.white10)),
+      ),
+      child: Row(
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const MainScreen()),
+                (route) => false,
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.directions_car_filled, color: Color(0xFFF27A22), size: 28),
+                  SizedBox(width: 10),
+                  Text('RayRide', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 48),
+          _buildNavItem(context, 'Home', Icons.home_outlined, currentRoute == 'home', () {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const MainScreen()),
+              (route) => false,
+            );
+          }),
+          _buildNavItem(context, 'Tours', Icons.tour_outlined, currentRoute == 'tours', () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ToursScreen()));
+          }),
+          _buildNavItem(context, 'Notifications', Icons.notifications_none, currentRoute == 'notifications', () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+          }),
+          const Spacer(),
+          _buildNavItem(context, 'Profile', Icons.person_outline, currentRoute == 'profile', () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(BuildContext context, String label, IconData icon, bool isActive, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, color: isActive ? const Color(0xFFF27A22) : Colors.white60, size: 20),
+        label: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? const Color(0xFFF27A22) : Colors.white60,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            fontSize: 14,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    );
+  }
+}
+
+// ================== 1. SIGN IN SCREEN ==================
+class SignInScreen extends StatefulWidget {
+  const SignInScreen({super.key});
+
+  @override
+  State<SignInScreen> createState() => _SignInScreenState();
+}
+
+class _SignInScreenState extends State<SignInScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _authService = AuthService();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      _showError('Lütfen e-posta ve şifre alanlarını doldurun.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _authService.login(LoginRequest(email: email, password: password));
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      _showError(e.message);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final wide = _isWideScreen(context);
+
+    final formChildren = <Widget>[
+      const Icon(Icons.directions_car_filled, size: 60, color: Color(0xFFF27A22)),
+      const SizedBox(height: 16),
+      const Text(
+        'RayRide',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+      ),
+      if (wide) const SizedBox(height: 8),
+      if (wide)
+        const Text(
+          'Premium transfers across the Turkish Riviera',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white54, fontSize: 14),
+        ),
+      const SizedBox(height: 40),
+      _buildTextField('Email', Icons.email_outlined, controller: _emailController),
+      const SizedBox(height: 16),
+      _buildTextField('Password', Icons.lock_outline, controller: _passwordController, isPassword: true),
+      const SizedBox(height: 32),
+      ElevatedButton(
+        onPressed: _isLoading ? null : _handleLogin,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFF27A22),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              )
+            : const Text('Sign In', style: TextStyle(fontSize: 18, color: Colors.white)),
+      ),
+      TextButton(
+        onPressed: _isLoading ? null : () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const SignUpScreen()));
+        },
+        child: const Text('Create Account', style: TextStyle(color: Colors.white70)),
+      ),
+    ];
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -43,56 +227,48 @@ class SignInScreen extends StatelessWidget {
             colors: [Color(0xFF2C3E66), Color(0xFF151B2D)],
           ),
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Icon(Icons.directions_car_filled, size: 60, color: Color(0xFFF27A22)),
-                const SizedBox(height: 16),
-                const Text(
-                  'RayRide',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const SizedBox(height: 40),
-                _buildTextField('Email', Icons.email_outlined),
-                const SizedBox(height: 16),
-                _buildTextField('Password', Icons.lock_outline, isPassword: true),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MainScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF27A22),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: wide
+            ? Center(
+                child: SingleChildScrollView(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    margin: const EdgeInsets.symmetric(vertical: 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E2742),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: formChildren,
+                    ),
                   ),
-                  child: const Text('Sign In', style: TextStyle(fontSize: 18, color: Colors.white)),
                 ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpScreen()));
-                  },
-                  child: const Text('Create Account', style: TextStyle(color: Colors.white70)),
-                )
-              ],
-            ),
-          ),
-        ),
+              )
+            : SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: formChildren,
+                  ),
+                ),
+              ),
       ),
     );
   }
 
-  Widget _buildTextField(String label, IconData icon, {bool isPassword = false}) {
+  Widget _buildTextField(String label, IconData icon, {
+    required TextEditingController controller,
+    bool isPassword = false,
+  }) {
     return TextField(
+      controller: controller,
       obscureText: isPassword,
+      keyboardType: isPassword ? TextInputType.visiblePassword : TextInputType.emailAddress,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: Colors.white54),
@@ -105,52 +281,197 @@ class SignInScreen extends StatelessWidget {
 }
 
 // ================== 2. SIGN UP SCREEN ==================
-class SignUpScreen extends StatelessWidget {
+class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
   @override
+  State<SignUpScreen> createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends State<SignUpScreen> {
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _userNameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _authService = AuthService();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _emailController.dispose();
+    _userNameController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleRegister() async {
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final email = _emailController.text.trim();
+    final userName = _userNameController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (firstName.isEmpty || lastName.isEmpty || email.isEmpty ||
+        userName.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+      _showError('Lütfen tüm alanları doldurun.');
+      return;
+    }
+
+    if (password != confirmPassword) {
+      _showError('Şifreler eşleşmiyor.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _authService.register(RegisterRequest(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        userName: userName,
+        password: password,
+        confirmPassword: confirmPassword,
+      ));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kayıt başarılı! Giriş yapabilirsiniz.'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.pop(context);
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      _showError(e.message);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final wide = _isWideScreen(context);
+
+    final formChildren = <Widget>[
+      const Text(
+        'Join RayRide',
+        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+        textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 30),
+      _buildTextField('First Name', Icons.person_outline, controller: _firstNameController),
+      const SizedBox(height: 16),
+      _buildTextField('Last Name', Icons.person_outline, controller: _lastNameController),
+      const SizedBox(height: 16),
+      _buildTextField('Email', Icons.email_outlined, controller: _emailController),
+      const SizedBox(height: 16),
+      _buildTextField('Username', Icons.alternate_email, controller: _userNameController),
+      const SizedBox(height: 16),
+      _buildTextField('Password', Icons.lock_outline, controller: _passwordController, isPassword: true),
+      const SizedBox(height: 16),
+      _buildTextField('Confirm Password', Icons.lock_outline, controller: _confirmPasswordController, isPassword: true),
+      const SizedBox(height: 32),
+      SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: _isLoading ? null : _handleRegister,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFF27A22),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                )
+              : const Text('Sign Up', style: TextStyle(fontSize: 18, color: Colors.white)),
+        ),
+      ),
+    ];
+
+    if (wide) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF151B2D),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF2C3E66), Color(0xFF151B2D)],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 440),
+                margin: const EdgeInsets.symmetric(vertical: 40),
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E2742),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: _isLoading ? null : () => Navigator.pop(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...formChildren,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       backgroundColor: const Color(0xFF151B2D),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
-          children: [
-            const Text(
-              'Join RayRide',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-            const SizedBox(height: 30),
-            _buildTextField('Full Name', Icons.person_outline),
-            const SizedBox(height: 16),
-            _buildTextField('Email', Icons.email_outlined),
-            const SizedBox(height: 16),
-            _buildTextField('Password', Icons.lock_outline, isPassword: true),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                      context, MaterialPageRoute(builder: (context) => const MainScreen()));
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF27A22),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Sign Up', style: TextStyle(fontSize: 18, color: Colors.white)),
-              ),
-            ),
-          ],
+          children: formChildren,
         ),
       ),
     );
   }
 
-  Widget _buildTextField(String label, IconData icon, {bool isPassword = false}) {
+  Widget _buildTextField(String label, IconData icon, {
+    required TextEditingController controller,
+    bool isPassword = false,
+  }) {
     return TextField(
+      controller: controller,
       obscureText: isPassword,
       decoration: InputDecoration(
         labelText: label,
@@ -176,6 +497,25 @@ class _MainScreenState extends State<MainScreen> {
   String selectedDropoff = "Belek Hotel Zone";
   DateTime selectedDate = DateTime.now();
   TimeOfDay selectedTime = const TimeOfDay(hour: 14, minute: 30);
+  final _authService = AuthService();
+  String _greeting = 'Hoş Geldiniz! ☀️';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGreeting();
+  }
+
+  Future<void> _loadGreeting() async {
+    final data = await _authService.getUserData();
+    if (data == null || !mounted) return;
+    final firstName = data['firstName'] as String? ?? '';
+    final userName = data['userName'] as String? ?? '';
+    final name = firstName.isNotEmpty ? firstName : userName;
+    if (name.isNotEmpty) {
+      setState(() => _greeting = 'Hoş Geldiniz, $name! ☀️');
+    }
+  }
 
   final List<String> locations = [
     "Antalya Airport (AYT)",
@@ -244,6 +584,216 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final wide = _isWideScreen(context);
+
+    Widget bookingForm = Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E2742),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.centerRight,
+            children: [
+              Column(
+                children: [
+                  _buildLocationRow(
+                    Icons.flight_takeoff,
+                    "PICK-UP",
+                    selectedPickup,
+                    onTap: () => _showLocationPicker(
+                      title: "Select Pick-up Location",
+                      currentValue: selectedPickup,
+                      icon: Icons.flight_takeoff,
+                      onSelected: (val) => setState(() => selectedPickup = val),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 11),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(width: 1, height: 20, color: Colors.white24),
+                    ),
+                  ),
+                  _buildLocationRow(
+                    Icons.location_on,
+                    "DROP-OFF",
+                    selectedDropoff,
+                    onTap: () => _showLocationPicker(
+                      title: "Select Drop-off Location",
+                      currentValue: selectedDropoff,
+                      icon: Icons.location_on,
+                      onSelected: (val) => setState(() => selectedDropoff = val),
+                    ),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    final temp = selectedPickup;
+                    selectedPickup = selectedDropoff;
+                    selectedDropoff = temp;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C3655),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: const Icon(Icons.swap_vert, color: Color(0xFFF27A22)),
+                ),
+              )
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _buildInputBox(
+                  Icons.calendar_today,
+                  "DATE",
+                  "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
+                  onTap: () => _selectDate(context),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildInputBox(
+                  Icons.access_time,
+                  "TIME",
+                  selectedTime.format(context),
+                  onTap: () => _selectTime(context),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChooseRideScreen(
+                      pickup: selectedPickup,
+                      dropoff: selectedDropoff,
+                      date: "${selectedDate.day} Feb",
+                      time: selectedTime.format(context),
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.search, color: Colors.white),
+              label: const Text('Find Transfers', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF27A22),
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    Widget routeCards = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildRouteCard("Airport", "Belek", "€35", "~30 min", "VIP Vito", Icons.airport_shuttle),
+          _buildRouteCard("Airport", "Kaleiçi", "€20", "~20 min", "Economy", Icons.directions_car),
+          _buildRouteCard("Airport", "Kemer", "€50", "~55 min", "Comfort", Icons.directions_bus),
+        ],
+      ),
+    );
+
+    Widget toursButton = ElevatedButton.icon(
+      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ToursScreen())),
+      icon: const Icon(Icons.tour, color: Colors.white),
+      label: const Text('View Day-Trip Tours', style: TextStyle(color: Colors.white)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFF27A22),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+
+    if (wide) {
+      return Scaffold(
+        body: Column(
+          children: [
+            const _WebNavBar(currentRoute: 'home'),
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.center,
+                    colors: [Color(0xFFBA5A2B), Color(0xFF151B2D)],
+                    stops: [0.0, 0.3],
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1000),
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 16),
+                            Text(_greeting, style: const TextStyle(color: Color(0xFFFFB74D), fontSize: 14)),
+                            const SizedBox(height: 5),
+                            const Text('Where would you like to go?',
+                                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2)),
+                            const SizedBox(height: 5),
+                            const Text('Premium transfers across the Turkish Riviera', style: TextStyle(color: Colors.white54)),
+                            const SizedBox(height: 30),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 3, child: bookingForm),
+                                const SizedBox(width: 24),
+                                Expanded(
+                                  flex: 2,
+                                  child: Column(
+                                    children: [
+                                      SizedBox(width: double.infinity, child: toursButton),
+                                      const SizedBox(height: 24),
+                                      const Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text('Popular Routes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _buildRouteCard("Airport", "Belek", "€35", "~30 min", "VIP Vito", Icons.airport_shuttle),
+                                      const SizedBox(height: 12),
+                                      _buildRouteCard("Airport", "Kaleiçi", "€20", "~20 min", "Economy", Icons.directions_car),
+                                      const SizedBox(height: 12),
+                                      _buildRouteCard("Airport", "Kemer", "€50", "~55 min", "Comfort", Icons.directions_bus),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -311,163 +861,20 @@ class _MainScreenState extends State<MainScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  const Text('Hoş Geldiniz! ☀️', style: TextStyle(color: Color(0xFFFFB74D), fontSize: 14)),
+                  Text(_greeting, style: const TextStyle(color: Color(0xFFFFB74D), fontSize: 14)),
                   const SizedBox(height: 5),
                   const Text('Where would you\nlike to go?',
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2)),
                   const SizedBox(height: 5),
                   const Text('Premium transfers across the Turkish Riviera', style: TextStyle(color: Colors.white54)),
                   const SizedBox(height: 25),
-
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E2742),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Stack(
-                          alignment: Alignment.centerRight,
-                          children: [
-                            Column(
-                              children: [
-                                _buildLocationRow(
-                                  Icons.flight_takeoff,
-                                  "PICK-UP",
-                                  selectedPickup,
-                                  onTap: () => _showLocationPicker(
-                                    title: "Select Pick-up Location",
-                                    currentValue: selectedPickup,
-                                    icon: Icons.flight_takeoff,
-                                    onSelected: (val) => setState(() => selectedPickup = val),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 11),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Container(width: 1, height: 20, color: Colors.white24),
-                                  ),
-                                ),
-                                _buildLocationRow(
-                                  Icons.location_on,
-                                  "DROP-OFF",
-                                  selectedDropoff,
-                                  onTap: () => _showLocationPicker(
-                                    title: "Select Drop-off Location",
-                                    currentValue: selectedDropoff,
-                                    icon: Icons.location_on,
-                                    onSelected: (val) => setState(() => selectedDropoff = val),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  final temp = selectedPickup;
-                                  selectedPickup = selectedDropoff;
-                                  selectedDropoff = temp;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2C3655),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white10),
-                                ),
-                                child: const Icon(Icons.swap_vert, color: Color(0xFFF27A22)),
-                              ),
-                            )
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildInputBox(
-                                Icons.calendar_today,
-                                "DATE",
-                                "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
-                                onTap: () => _selectDate(context),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildInputBox(
-                                Icons.access_time,
-                                "TIME",
-                                selectedTime.format(context),
-                                onTap: () => _selectTime(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ChooseRideScreen(
-                                    pickup: selectedPickup,
-                                    dropoff: selectedDropoff,
-                                    date: "${selectedDate.day} Feb",
-                                    time: selectedTime.format(context),
-                                  ),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.search, color: Colors.white),
-                            label: const Text('Find Transfers', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFF27A22),
-                              padding: const EdgeInsets.symmetric(vertical: 18),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
+                  bookingForm,
                   const SizedBox(height: 30),
-
-
-                  ElevatedButton.icon(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ToursScreen())),
-                    icon: const Icon(Icons.tour, color: Colors.white),
-                    label: const Text('View Day-Trip Tours', style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF27A22),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-
-
+                  toursButton,
                   const SizedBox(height: 30),
                   const Text('Popular Routes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 16),
-
-
-
-
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildRouteCard("Airport", "Belek", "€35", "~30 min", "VIP Vito", Icons.airport_shuttle),
-                        _buildRouteCard("Airport", "Kaleiçi", "€20", "~20 min", "Economy", Icons.directions_car),
-                        _buildRouteCard("Airport", "Kemer", "€50", "~55 min", "Comfort", Icons.directions_bus),
-                      ],
-                    ),
-                  )
+                  routeCards,
                 ],
               ),
             ),
@@ -665,38 +1072,75 @@ void showLanguageDialog(BuildContext context) {
 
 
 // ================== 4. PROFILE SCREEN ==================
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _authService = AuthService();
+  String _displayName = '';
+  String _email = '';
+  String _initials = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final data = await _authService.getUserData();
+    if (data == null || !mounted) return;
+
+    final firstName = data['firstName'] as String? ?? '';
+    final lastName = data['lastName'] as String? ?? '';
+    final userName = data['userName'] as String? ?? '';
+    final email = data['email'] as String? ?? '';
+
+    String displayName;
+    String initials;
+
+    if (firstName.isNotEmpty && lastName.isNotEmpty) {
+      displayName = '$firstName $lastName';
+      initials = '${firstName[0]}${lastName[0]}'.toUpperCase();
+    } else if (userName.isNotEmpty) {
+      displayName = userName;
+      initials = userName.substring(0, userName.length >= 2 ? 2 : 1).toUpperCase();
+    } else {
+      displayName = email;
+      initials = email.isNotEmpty ? email[0].toUpperCase() : '?';
+    }
+
+    setState(() {
+      _displayName = displayName;
+      _email = email;
+      _initials = initials;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF151B2D),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Profile'),
-        centerTitle: true,
-        actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.settings_outlined))
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: SingleChildScrollView(
+    final wide = _isWideScreen(context);
+
+    Widget content = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 40,
-                    backgroundColor: Color(0xFFF27A22),
-                    child: Text('AT', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                    backgroundColor: const Color(0xFFF27A22),
+                    child: Text(_initials, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Alex Thompson', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                  const Text('alex.thompson@email.com', style: TextStyle(color: Colors.white54)),
+                  Text(_displayName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(_email, style: const TextStyle(color: Colors.white54)),
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -762,11 +1206,12 @@ class ProfileScreen extends StatelessWidget {
 
                   const SizedBox(height: 40),
 
-                  // LOGOUT BUTTON
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
+                        await _authService.logout();
+                        if (!mounted) return;
                         Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(builder: (context) => const SignInScreen()),
                               (Route<dynamic> route) => false,
@@ -787,7 +1232,32 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
         ),
+    );
+
+    if (wide) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF151B2D),
+        body: Column(
+          children: [
+            const _WebNavBar(currentRoute: 'profile'),
+            Expanded(child: content),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF151B2D),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Profile'),
+        centerTitle: true,
+        actions: [
+          IconButton(onPressed: () {}, icon: const Icon(Icons.settings_outlined))
+        ],
       ),
+      body: content,
     );
   }
 
@@ -865,9 +1335,11 @@ class ChooseRideScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final wide = _isWideScreen(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFF151B2D),
-      appBar: AppBar(
+      appBar: wide ? null : AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Padding(
@@ -900,50 +1372,73 @@ class ChooseRideScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          if (wide) const _WebNavBar(),
+          if (wide)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Choose Your Ride', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white)),
+                ],
+              ),
+            ),
+          Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: wide ? 900 : double.infinity),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.flight_takeoff, color: Color(0xFFF27A22), size: 16),
-                        const SizedBox(width: 8),
-                        Text(pickup, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                        Row(
+                          children: [
+                            const Icon(Icons.flight_takeoff, color: Color(0xFFF27A22), size: 16),
+                            const SizedBox(width: 8),
+                            Text(pickup, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          ],
+                        ),
+                        Container(
+                          margin: const EdgeInsets.only(left: 7, top: 4, bottom: 4),
+                          height: 10,
+                          width: 1,
+                          color: Colors.white24,
+                        ),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on, color: Color(0xFFF27A22), size: 16),
+                            const SizedBox(width: 8),
+                            Text(dropoff, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          ],
+                        ),
                       ],
                     ),
-                    Container(
-                      margin: const EdgeInsets.only(left: 7, top: 4, bottom: 4),
-                      height: 10,
-                      width: 1,
-                      color: Colors.white24,
-                    ),
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Icon(Icons.location_on, color: Color(0xFFF27A22), size: 16),
-                        const SizedBox(width: 8),
-                        Text(dropoff, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                        Text(date, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 12),
+                        Text(time, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                       ],
-                    ),
+                    )
                   ],
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(date, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                    const SizedBox(height: 12),
-                    Text(time, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                  ],
-                )
-              ],
+              ),
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: wide ? 900 : double.infinity),
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
                 _buildVehicleCard(
                   context,
@@ -1002,6 +1497,8 @@ class ChooseRideScreen extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
           ),
         ],
       ),
@@ -1221,9 +1718,78 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final wide = _isWideScreen(context);
     List<Map<String, dynamic>> filteredList = notifications;
     if (selectedFilter != 'All') {
       filteredList = notifications.where((n) => n['category'] == selectedFilter).toList();
+    }
+
+    Widget body = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Row(
+            children: [
+              _buildFilterChip('All'),
+              const SizedBox(width: 8),
+              _buildFilterChip('Bookings'),
+              const SizedBox(width: 8),
+              _buildFilterChip('Offers'),
+              const SizedBox(width: 8),
+              _buildFilterChip('System'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: filteredList.length,
+            itemBuilder: (context, index) {
+              final item = filteredList[index];
+              return _buildNotificationCard(item);
+            },
+          ),
+        ),
+      ],
+    );
+
+    if (wide) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF151B2D),
+        body: Column(
+          children: [
+            const _WebNavBar(currentRoute: 'notifications'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: Row(
+                    children: [
+                      const Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white)),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: const Color(0xFF3B2A2E), borderRadius: BorderRadius.circular(12)),
+                        child: const Text('2 new', style: TextStyle(color: Color(0xFFF27A22), fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: body,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return Scaffold(
@@ -1254,35 +1820,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           )
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              children: [
-                _buildFilterChip('All'),
-                const SizedBox(width: 8),
-                _buildFilterChip('Bookings'),
-                const SizedBox(width: 8),
-                _buildFilterChip('Offers'),
-                const SizedBox(width: 8),
-                _buildFilterChip('System'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: filteredList.length,
-              itemBuilder: (context, index) {
-                final item = filteredList[index];
-                return _buildNotificationCard(item);
-              },
-            ),
-          ),
-        ],
-      ),
+      body: body,
     );
   }
 
@@ -1387,13 +1925,14 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final wide = _isWideScreen(context);
     double transferFee = double.tryParse(widget.price.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
     double serviceFee = 1.25;
     double total = transferFee + serviceFee;
 
     return Scaffold(
       backgroundColor: const Color(0xFF151B2D),
-      appBar: AppBar(
+      appBar: wide ? null : AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Padding(
@@ -1418,9 +1957,36 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
           )
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+      body: Column(
+        children: [
+          if (wide) const _WebNavBar(),
+          if (wide)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Confirm Booking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.lock, color: Colors.greenAccent, size: 16),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: wide ? 800 : double.infinity),
+                child: SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Vehicle Summary Card
@@ -1591,6 +2157,11 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
           ],
         ),
       ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1676,85 +2247,103 @@ class BookingSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Generate a random-looking Booking ID
+    final wide = _isWideScreen(context);
     final String bookingId = "#RAY-${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}";
+
+    Widget successContent = Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Spacer(),
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.1),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.green, width: 2),
+          ),
+          child: const Icon(Icons.check, color: Colors.green, size: 40),
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'Booking Confirmed!',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Your $vehicleName transfer has been booked successfully. Driver details will be sent to you 1 hour before pickup.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white54, fontSize: 14),
+        ),
+        const SizedBox(height: 40),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E2742),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              _buildDetailRow('Booking ID', bookingId),
+              const Divider(color: Colors.white10, height: 24),
+              _buildDetailRow('Vehicle', vehicleName),
+              const Divider(color: Colors.white10, height: 24),
+              _buildDetailRow('Date & Time', '$date, $time'),
+              const Divider(color: Colors.white10, height: 24),
+              _buildDetailRow('Route', '${pickup.split(' ')[0]} → ${dropoff.split(' ')[0]}'),
+            ],
+          ),
+        ),
+        const Spacer(),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const MainScreen()),
+                    (Route<dynamic> route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF27A22),
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Back to Home', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ],
+    );
+
+    if (wide) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF151B2D),
+        body: Column(
+          children: [
+            const _WebNavBar(),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: successContent,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF151B2D),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Spacer(),
-              // Success Icon
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.green, width: 2),
-                ),
-                child: const Icon(Icons.check, color: Colors.green, size: 40),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Booking Confirmed!',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Your $vehicleName transfer has been booked successfully. Driver details will be sent to you 1 hour before pickup.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-              const SizedBox(height: 40),
-
-              // Details Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E2742),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    _buildDetailRow('Booking ID', bookingId),
-                    const Divider(color: Colors.white10, height: 24),
-                    _buildDetailRow('Vehicle', vehicleName),
-                    const Divider(color: Colors.white10, height: 24),
-                    _buildDetailRow('Date & Time', '$date, $time'),
-                    const Divider(color: Colors.white10, height: 24),
-                    _buildDetailRow('Route', '${pickup.split(' ')[0]} → ${dropoff.split(' ')[0]}'),
-                  ],
-                ),
-              ),
-              const Spacer(),
-
-              // Back to Home Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Go back to the very first screen (MainScreen)
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => const MainScreen()),
-                          (Route<dynamic> route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF27A22),
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Back to Home', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
+          child: successContent,
         ),
       ),
     );
@@ -1782,6 +2371,35 @@ class ToursScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final wide = _isWideScreen(context);
+
+    Widget content = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildTourCard(context, 'Aspendos & Perge', 'Explore ancient ruins and amphitheaters.', '€45'),
+            _buildTourCard(context, 'Pamukkale Day Trip', 'Thermal pools and Hierapolis tour.', '€65'),
+            _buildTourCard(context, 'Olympos Cable Car', 'Panoramic views from Mount Tahtali.', '€55'),
+            _buildTourCard(context, 'Kaleiçi Old Town Tour', 'Guided walking tour through historic Antalya.', '€25'),
+          ],
+        ),
+      ),
+    );
+
+    if (wide) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF151B2D),
+        body: Column(
+          children: [
+            const _WebNavBar(currentRoute: 'tours'),
+            Expanded(child: content),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF151B2D),
       appBar: AppBar(
@@ -1792,20 +2410,7 @@ class ToursScreen extends StatelessWidget {
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildTourCard(context, 'Aspendos & Perge', 'Explore ancient ruins and amphitheaters.', '€45'),
-              _buildTourCard(context, 'Pamukkale Day Trip', 'Thermal pools and Hierapolis tour.', '€65'),
-              _buildTourCard(context, 'Olympos Cable Car', 'Panoramic views from Mount Tahtali.', '€55'),
-              _buildTourCard(context, 'Kaleiçi Old Town Tour', 'Guided walking tour through historic Antalya.', '€25'),
-            ],
-          ),
-        ),
-      ),
+      body: content,
     );
   }
 
@@ -1915,8 +2520,138 @@ class _TourBookingScreenState extends State<TourBookingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final wide = _isWideScreen(context);
     double priceVal = double.tryParse(widget.basePrice.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
     double total = priceVal * pax;
+
+    Widget content = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(widget.desc, style: const TextStyle(color: Colors.white54, fontSize: 14)),
+              const SizedBox(height: 30),
+
+              const Text('Select Date', style: TextStyle(color: Colors.white, fontSize: 16)),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: () => _selectDate(context),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: const Color(0xFF1E2742), borderRadius: BorderRadius.circular(12)),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today, color: Color(0xFFF27A22)),
+                      const SizedBox(width: 12),
+                      Text("${selectedDate.day}/${selectedDate.month}/${selectedDate.year}", style: const TextStyle(color: Colors.white, fontSize: 16)),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              const Text('Number of Passengers', style: TextStyle(color: Colors.white, fontSize: 16)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: const Color(0xFF1E2742), borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('$pax Passenger${pax > 1 ? 's' : ''}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => setState(() { if (pax > 1) pax--; }),
+                          icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFF27A22)),
+                        ),
+                        Text('$pax', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        IconButton(
+                          onPressed: () => setState(() => pax++),
+                          icon: const Icon(Icons.add_circle_outline, color: Color(0xFFF27A22)),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Total Price:', style: TextStyle(color: Colors.white54, fontSize: 16)),
+                  Text('€${total.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFFF27A22), fontSize: 24, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    String assignedVehicle;
+                    String assignedImage;
+
+                    if (pax <= 4) {
+                      assignedVehicle = "Mercedes Benz";
+                      assignedImage = 'assets/classs.png';
+                    } else if (pax <= 9) {
+                      assignedVehicle = "Mercedes Vito";
+                      assignedImage = 'assets/vito.png';
+                    } else {
+                      assignedVehicle = "Mercedes Sprinter";
+                      assignedImage = 'assets/sprinter7.png';
+                    }
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ConfirmBookingScreen(
+                          vehicleName: assignedVehicle,
+                          vehicleSubtitle: widget.title,
+                          price: '€${total.toStringAsFixed(2)}',
+                          imagePath: assignedImage,
+                          pickup: 'Your Hotel',
+                          dropoff: widget.title,
+                          date: "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
+                          time: '09:00',
+                          pax: pax.toString(),
+                        ),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF27A22),
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Continue to Payment', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (wide) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF151B2D),
+        body: Column(
+          children: [
+            const _WebNavBar(currentRoute: 'tours'),
+            Expanded(child: content),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF151B2D),
@@ -1930,123 +2665,7 @@ class _TourBookingScreenState extends State<TourBookingScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(widget.desc, style: const TextStyle(color: Colors.white54, fontSize: 14)),
-                const SizedBox(height: 30),
-
-                const Text('Select Date', style: TextStyle(color: Colors.white, fontSize: 16)),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: () => _selectDate(context),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: const Color(0xFF1E2742), borderRadius: BorderRadius.circular(12)),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today, color: Color(0xFFF27A22)),
-                        const SizedBox(width: 12),
-                        Text("${selectedDate.day}/${selectedDate.month}/${selectedDate.year}", style: const TextStyle(color: Colors.white, fontSize: 16)),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                const Text('Number of Passengers', style: TextStyle(color: Colors.white, fontSize: 16)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: const Color(0xFF1E2742), borderRadius: BorderRadius.circular(12)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('$pax Passenger${pax > 1 ? 's' : ''}', style: const TextStyle(color: Colors.white, fontSize: 16)),
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: () => setState(() { if (pax > 1) pax--; }),
-                            icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFF27A22)),
-                          ),
-                          Text('$pax', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                          IconButton(
-                            onPressed: () => setState(() => pax++),
-                            icon: const Icon(Icons.add_circle_outline, color: Color(0xFFF27A22)),
-                          ),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-
-                const Spacer(),
-
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total Price:', style: TextStyle(color: Colors.white54, fontSize: 16)),
-                    Text('€${total.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFFF27A22), fontSize: 24, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      String assignedVehicle;
-                      String assignedImage;
-
-                      if (pax <= 4) {
-                        assignedVehicle = "Mercedes Benz";
-                        assignedImage = 'assets/classs.png';
-                      } else if (pax <= 9) {
-                        assignedVehicle = "Mercedes Vito";
-                        assignedImage = 'assets/vito.png';
-                      } else {
-                        assignedVehicle = "Mercedes Sprinter";
-                        assignedImage = 'assets/sprinter7.png';
-                      }
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ConfirmBookingScreen(
-                            vehicleName: assignedVehicle,
-                            vehicleSubtitle: widget.title,
-                            price: '€${total.toStringAsFixed(2)}',
-                            imagePath: assignedImage,
-                            pickup: 'Your Hotel',
-                            dropoff: widget.title,
-                            date: "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
-                            time: '09:00',
-                            pax: pax.toString(),
-                          ),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF27A22),
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Continue to Payment', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      body: content,
     );
   }
 }
