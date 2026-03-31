@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/login_request.dart';
 import 'models/register_request.dart';
@@ -492,7 +495,40 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+// ─────────────────────────────────────────────────
+// Helper: save a booking to SharedPreferences list
+// ─────────────────────────────────────────────────
+Future<void> saveBooking(Map<String, dynamic> booking) async {
+  final prefs = await SharedPreferences.getInstance();
+  
+  // Save to bookings list
+  final raw = prefs.getStringList('bookings') ?? [];
+  raw.insert(0, jsonEncode(booking));
+  await prefs.setStringList('bookings', raw);
+
+  // Save to notifications list
+  final rawNotifs = prefs.getStringList('notifications') ?? [];
+  final newNotif = {
+    'title': 'Rate Your Trip',
+    'message': 'Your transfer from ${booking['pickup']} is complete. How was your ride?',
+    'time': 'Just now',
+    'category': 'Bookings',
+    'isUnread': true,
+    'type': 'rating', // Serializable type instead of IconData
+    'booking': booking, // Store the booking details for the rating screen
+  };
+  rawNotifs.insert(0, jsonEncode(newNotif));
+  await prefs.setStringList('notifications', rawNotifs);
+}
+
+Future<List<Map<String, dynamic>>> loadBookings() async {
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getStringList('bookings') ?? [];
+  return raw.map((s) => jsonDecode(s) as Map<String, dynamic>).toList();
+}
+
+class _MainScreenState extends State<MainScreen>
+    with SingleTickerProviderStateMixin {
   String selectedPickup = "Antalya Airport (AYT)";
   String selectedDropoff = "Belek Hotel Zone";
   DateTime selectedDate = DateTime.now();
@@ -500,10 +536,26 @@ class _MainScreenState extends State<MainScreen> {
   final _authService = AuthService();
   String _greeting = 'Hoş Geldiniz! ☀️';
 
+  late final AnimationController _swapCtrl;
+  late final Animation<double> _swapAnim;
+
   @override
   void initState() {
     super.initState();
     _loadGreeting();
+    _swapCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _swapAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _swapCtrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _swapCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadGreeting() async {
@@ -637,6 +689,7 @@ class _MainScreenState extends State<MainScreen> {
                     selectedPickup = selectedDropoff;
                     selectedDropoff = temp;
                   });
+                  _swapCtrl.forward(from: 0);
                 },
                 child: Container(
                   padding: const EdgeInsets.all(8),
@@ -645,7 +698,10 @@ class _MainScreenState extends State<MainScreen> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.white10),
                   ),
-                  child: const Icon(Icons.swap_vert, color: Color(0xFFF27A22)),
+                  child: RotationTransition(
+                    turns: _swapAnim,
+                    child: const Icon(Icons.swap_vert, color: Color(0xFFF27A22)),
+                  ),
                 ),
               )
             ],
@@ -1181,7 +1237,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     child: Column(
                       children: [
-                        _buildMenuItem(Icons.history, 'Booking History'),
+                        _buildMenuItem(Icons.history, 'Booking History', onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingHistoryScreen()));
+                        }),
                         const Divider(color: Colors.white10, height: 1),
                         _buildMenuItem(Icons.credit_card, 'Payment Methods', subtitle: 'Visa **** 4242'),
                         const Divider(color: Colors.white10, height: 1),
@@ -1716,12 +1774,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     },
   ];
 
+  List<Map<String, dynamic>> dynamicNotifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDynamicNotifications();
+  }
+
+  Future<void> _loadDynamicNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList('notifications') ?? [];
+    if (mounted) {
+      setState(() {
+        dynamicNotifications = raw.map((s) => jsonDecode(s) as Map<String, dynamic>).toList();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final wide = _isWideScreen(context);
-    List<Map<String, dynamic>> filteredList = notifications;
+    final allNotifs = [...dynamicNotifications, ...notifications];
+    
+    List<Map<String, dynamic>> filteredList = allNotifs;
     if (selectedFilter != 'All') {
-      filteredList = notifications.where((n) => n['category'] == selectedFilter).toList();
+      filteredList = allNotifs.where((n) => n['category'] == selectedFilter).toList();
     }
 
     Widget body = Column(
@@ -1851,42 +1929,75 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildNotificationCard(Map<String, dynamic> item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E2742),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: item['iconBg'], borderRadius: BorderRadius.circular(10)),
-            child: Icon(item['icon'], color: item['iconColor'], size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item['title'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 6),
-                Text(item['message'], style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4)),
-                const SizedBox(height: 8),
-                Text(item['time'], style: const TextStyle(color: Colors.white38, fontSize: 10)),
-              ],
-            ),
-          ),
-          if (item['isUnread'])
+    final bool isRating = (item['title'] as String).contains('Rate');
+    
+    // Resolve icons and colors for dynamic/static notifications
+    IconData icon = item['icon'] is IconData ? item['icon'] : Icons.notifications;
+    Color iconColor = item['iconColor'] is Color ? item['iconColor'] : const Color(0xFFF27A22);
+    Color iconBg = item['iconBg'] is Color ? item['iconBg'] : const Color(0xFFF27A22).withOpacity(0.1);
+
+    if (item['type'] == 'rating') {
+      icon = Icons.star_rate;
+      iconColor = const Color(0xFFF27A22);
+      iconBg = const Color(0xFFF27A22).withOpacity(0.1);
+    }
+
+    return GestureDetector(
+      onTap: isRating
+          ? () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RatingScreen(
+                    bookingData: item['booking'] as Map<String, dynamic>?,
+                  ),
+                ),
+              )
+          : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E2742),
+          borderRadius: BorderRadius.circular(12),
+          border: isRating
+              ? Border.all(color: const Color(0xFFF27A22).withOpacity(0.4))
+              : null,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Container(
-              margin: const EdgeInsets.only(left: 8, top: 4),
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(color: Color(0xFFF27A22), shape: BoxShape.circle),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
-        ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item['title'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  const SizedBox(height: 6),
+                  Text(item['message'], style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4)),
+                  const SizedBox(height: 8),
+                  Text(item['time'], style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                ],
+              ),
+            ),
+            if (item['isUnread'])
+              Container(
+                margin: const EdgeInsets.only(left: 8, top: 4),
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(color: Color(0xFFF27A22), shape: BoxShape.circle),
+              ),
+            if (isRating)
+              const Padding(
+                padding: EdgeInsets.only(left: 8, top: 2),
+                child: Icon(Icons.chevron_right, color: Color(0xFFF27A22), size: 18),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -2129,8 +2240,16 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  // Navigate to the Success Screen
+                onPressed: () async {
+                  await saveBooking({
+                    'vehicleName': widget.vehicleName,
+                    'pickup': widget.pickup,
+                    'dropoff': widget.dropoff,
+                    'date': widget.date,
+                    'time': widget.time,
+                    'price': widget.price,
+                  });
+                  if (!context.mounted) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -2228,6 +2347,322 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
   }
 }
 
+
+
+// ================== BOOKING HISTORY SCREEN ==================
+class BookingHistoryScreen extends StatefulWidget {
+  const BookingHistoryScreen({super.key});
+
+  @override
+  State<BookingHistoryScreen> createState() => _BookingHistoryScreenState();
+}
+
+class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
+  late Future<List<Map<String, dynamic>>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = loadBookings();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final wide = _isWideScreen(context);
+
+    Widget content = FutureBuilder<List<Map<String, dynamic>>>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFFF27A22)));
+        }
+        final bookings = snap.data ?? [];
+        if (bookings.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.history, size: 64, color: Colors.white24),
+                const SizedBox(height: 16),
+                const Text('No bookings yet', style: TextStyle(color: Colors.white38, fontSize: 16)),
+              ],
+            ),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: bookings.length,
+          itemBuilder: (context, i) {
+            final b = bookings[i];
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E2742),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white10,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.directions_car, color: Color(0xFFF27A22), size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          b['vehicleName'] ?? '',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${b['pickup']} → ${b['dropoff']}',
+                          style: const TextStyle(color: Colors.white54, fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${b['date']}  ${b['time']}',
+                          style: const TextStyle(color: Colors.white38, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    b['price'] ?? '',
+                    style: const TextStyle(color: Color(0xFFFFB74D), fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (wide) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF151B2D),
+        body: Column(
+          children: [
+            const _WebNavBar(currentRoute: 'profile'),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: content,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF151B2D),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Booking History', style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+      ),
+      body: content,
+    );
+  }
+}
+
+// ================== RATING SCREEN ==================
+class RatingScreen extends StatefulWidget {
+  final Map<String, dynamic>? bookingData;
+  const RatingScreen({super.key, this.bookingData});
+
+  @override
+  State<RatingScreen> createState() => _RatingScreenState();
+}
+
+class _RatingScreenState extends State<RatingScreen> {
+  int _selectedStars = 0;
+  final _commentCtrl = TextEditingController();
+  bool _submitted = false;
+
+  @override
+  void dispose() {
+    _commentCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF151B2D),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Rate Your Trip', style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: _submitted ? _buildSuccess() : _buildForm(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E2742),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.directions_car, color: Color(0xFFF27A22)),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.bookingData != null 
+                        ? '${widget.bookingData!['pickup']} → ${widget.bookingData!['dropoff']}'
+                        : 'Airport → Lara Beach', 
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+                  ),
+                  Text(
+                    widget.bookingData != null 
+                        ? '${widget.bookingData!['date']} · ${widget.bookingData!['vehicleName']}'
+                        : '15 Feb · Economy Sedan', 
+                    style: const TextStyle(color: Colors.white38, fontSize: 12)
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 40),
+        const Text('How was your experience?',
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(5, (i) {
+            final star = i + 1;
+            return GestureDetector(
+              onTap: () => setState(() => _selectedStars = star),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(
+                  star <= _selectedStars ? Icons.star_rounded : Icons.star_outline_rounded,
+                  size: star <= _selectedStars ? 52 : 44,
+                  color: star <= _selectedStars ? const Color(0xFFFFB74D) : Colors.white24,
+                ),
+              ),
+            );
+          }),
+        ),
+        if (_selectedStars > 0) ...
+          [
+            const SizedBox(height: 8),
+            Text(
+              ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent!'][_selectedStars],
+              style: const TextStyle(color: Color(0xFFFFB74D), fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ],
+        const SizedBox(height: 32),
+        TextField(
+          controller: _commentCtrl,
+          maxLines: 3,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Leave a comment (optional)...',
+            hintStyle: const TextStyle(color: Colors.white38),
+            filled: true,
+            fillColor: const Color(0xFF1E2742),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        const Spacer(),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _selectedStars == 0
+                ? null
+                : () => setState(() => _submitted = true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF27A22),
+              disabledBackgroundColor: Colors.white12,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Submit Review',
+                style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuccess() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.1),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.green, width: 2),
+          ),
+          child: const Icon(Icons.check, color: Colors.green, size: 40),
+        ),
+        const SizedBox(height: 24),
+        const Text('Thank You!',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+        const SizedBox(height: 12),
+        const Text(
+          'Your feedback helps us improve our service.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white54, fontSize: 14),
+        ),
+        const SizedBox(height: 40),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF27A22),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Back', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class BookingSuccessScreen extends StatelessWidget {
   final String vehicleName;
