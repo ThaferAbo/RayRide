@@ -2,10 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lottie/lottie.dart';
+import 'package:shimmer/shimmer.dart' as shimmer;
 
 import 'models/login_request.dart';
 import 'models/register_request.dart';
 import 'services/auth_service.dart';
+
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
 void main() {
   runApp(const RayRideApp());
@@ -19,21 +23,44 @@ class RayRideApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'RayRide',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF151B2D), // Deep dark blue background
-        primaryColor: const Color(0xFFF27A22), // Orange
-        fontFamily: 'Roboto',
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFF27A22),
-          secondary: Color(0xFFF27A22),
-          surface: Color(0xFF1E2742), // Lighter blue for cards
-        ),
-      ),
-      home: const SignInScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (_, ThemeMode currentMode, __) {
+        return MaterialApp(
+          title: 'RayRide',
+          debugShowCheckedModeBanner: false,
+          themeMode: currentMode,
+          builder: (context, child) {
+            if (currentMode == ThemeMode.light) {
+              return InvertFilter(child: child!);
+            }
+            return child!;
+          },
+          theme: ThemeData(
+            brightness: Brightness.light,
+            scaffoldBackgroundColor: const Color(0xFFF3F4F6),
+            primaryColor: const Color(0xFFF27A22),
+            fontFamily: 'Roboto',
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFFF27A22),
+              secondary: Color(0xFFF27A22),
+              surface: Colors.white,
+            ),
+          ),
+          darkTheme: ThemeData(
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: const Color(0xFF151B2D), // Deep dark blue background
+            primaryColor: const Color(0xFFF27A22), // Orange
+            fontFamily: 'Roboto',
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFF27A22),
+              secondary: Color(0xFFF27A22),
+              surface: Color(0xFF1E2742), // Lighter blue for cards
+            ),
+          ),
+          home: const SignInScreen(),
+        );
+      },
     );
   }
 }
@@ -85,6 +112,23 @@ class _WebNavBar extends StatelessWidget {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
           }),
           const Spacer(),
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: themeNotifier,
+            builder: (context, mode, child) {
+              final isDark = mode == ThemeMode.dark;
+              return IconButton(
+                onPressed: () {
+                  themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
+                },
+                icon: Icon(
+                  isDark ? Icons.light_mode : Icons.dark_mode,
+                  color: Colors.white60,
+                ),
+                tooltip: 'Toggle Theme',
+              );
+            },
+          ),
+          const SizedBox(width: 8),
           _buildNavItem(context, 'Profile', Icons.person_outline, currentRoute == 'profile', () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
           }),
@@ -1495,68 +1539,70 @@ class ChooseRideScreen extends StatelessWidget {
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: wide ? 900 : double.infinity),
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _buildVehicleCard(
-                  context,
-                  name: 'Economy Sedan',
-                  subtitle: 'Toyota Corolla or similar',
-                  price: '€25.00',
-                  time: '~25 min',
-                  pax: 3,
-                  bags: 2,
-                  isVip: false,
-                  imagePath: 'assets/toytaCorolla0.png',
+                child: _ShimmerListWrapper(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      _buildVehicleCard(
+                        context,
+                        name: 'Economy Sedan',
+                        subtitle: 'Toyota Corolla or similar',
+                        price: '€25.00',
+                        time: '~25 min',
+                        pax: 3,
+                        bags: 2,
+                        isVip: false,
+                        imagePath: 'assets/toytaCorolla0.png',
+                      ),
+                      _buildVehicleCard(
+                        context,
+                        name: 'Comfort Plus',
+                        subtitle: 'Mercedes E-Class',
+                        price: '€38.00',
+                        time: '~25 min',
+                        pax: 3,
+                        bags: 3,
+                        isVip: false,
+                        imagePath: 'assets/classs.png',
+                      ),
+                      _buildVehicleCard(
+                        context,
+                        name: 'VIP Vito',
+                        subtitle: 'Mercedes-Benz Vito',
+                        price: '€55.00',
+                        time: '~25 min',
+                        pax: 6,
+                        bags: 6,
+                        isVip: true,
+                        imagePath: 'assets/vito.png',
+                      ),
+                      _buildVehicleCard(
+                        context,
+                        name: 'Mercedes Sprinter',
+                        subtitle: 'VIP Group Shuttle',
+                        price: '€75.00',
+                        time: '~30 min',
+                        pax: 12,
+                        bags: 12,
+                        isVip: true,
+                        imagePath: 'assets/sprinter7.png',
+                      ),
+                      _buildVehicleCard(
+                        context,
+                        name: 'Cadillac Escalade',
+                        subtitle: 'Premium Luxury SUV',
+                        price: '€90.00',
+                        time: '~25 min',
+                        pax: 4,
+                        bags: 4,
+                        isVip: true,
+                        imagePath: 'assets/cadil5.png',
+                      ),
+                    ],
+                  ),
                 ),
-                _buildVehicleCard(
-                  context,
-                  name: 'Comfort Plus',
-                  subtitle: 'Mercedes E-Class',
-                  price: '€38.00',
-                  time: '~25 min',
-                  pax: 3,
-                  bags: 3,
-                  isVip: false,
-                  imagePath: 'assets/classs.png',
-                ),
-                _buildVehicleCard(
-                  context,
-                  name: 'VIP Vito',
-                  subtitle: 'Mercedes-Benz Vito',
-                  price: '€55.00',
-                  time: '~25 min',
-                  pax: 6,
-                  bags: 6,
-                  isVip: true,
-                  imagePath: 'assets/vito.png',
-                ),
-                _buildVehicleCard(
-                  context,
-                  name: 'Mercedes Sprinter',
-                  subtitle: 'VIP Group Shuttle',
-                  price: '€75.00',
-                  time: '~30 min',
-                  pax: 12,
-                  bags: 12,
-                  isVip: true,
-                  imagePath: 'assets/sprinter7.png',
-                ),
-                _buildVehicleCard(
-                  context,
-                  name: 'Cadillac Escalade',
-                  subtitle: 'Premium Luxury SUV',
-                  price: '€90.00',
-                  time: '~25 min',
-                  pax: 4,
-                  bags: 4,
-                  isVip: true,
-                  imagePath: 'assets/cadil5.png',
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
           ),
         ],
       ),
@@ -1626,7 +1672,7 @@ class ChooseRideScreen extends StatelessWidget {
               height: 100,
               width: double.infinity,
               margin: const EdgeInsets.symmetric(vertical: 10),
-              child: Image.asset(imagePath, fit: BoxFit.contain),
+              child: AntiInvertFilter(child: Image.asset(imagePath, fit: BoxFit.contain)),
             ),
 
             Row(
@@ -2138,51 +2184,104 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
 
             // Trip Details Card
             Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: const Color(0xFF1E2742), borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E2742),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFF27A22).withOpacity(0.5)),
+              ),
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.flight_takeoff, color: Color(0xFFF27A22), size: 20),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Pick-up', style: TextStyle(color: Colors.white38, fontSize: 10)),
-                          Text(widget.pickup, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                        ],
-                      )
-                    ],
-                  ),
+                  // Map Placeholder
                   Container(
-                    margin: const EdgeInsets.only(left: 9, top: 4, bottom: 4),
-                    height: 15,
-                    width: 1,
-                    color: Colors.white24,
+                    height: 120,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                      child: AntiInvertFilter(
+                        child: Image.network(
+                          'https://static-maps.yandex.ru/1.x/?lang=en-US&ll=30.7133,36.8969&z=11&l=map&size=600,200',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: const Color(0xFF2C3E66),
+                            child: const Center(child: Icon(Icons.map, color: Colors.white24, size: 50)),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, color: Color(0xFFF27A22), size: 20),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Drop-off', style: TextStyle(color: Colors.white38, fontSize: 10)),
-                          Text(widget.dropoff, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                        ],
-                      )
-                    ],
+                  // Dashed separator (Ticket look)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(height: 20, width: 10, decoration: const BoxDecoration(color: Color(0xFF151B2D), borderRadius: BorderRadius.horizontal(right: Radius.circular(10)))),
+                        Expanded(
+                          child: LayoutBuilder(builder: (context, constraints) {
+                            return Flex(
+                              direction: Axis.horizontal,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: List.generate(
+                                (constraints.constrainWidth() / 10).floor(),
+                                (_) => const SizedBox(width: 5, height: 1.5, child: DecoratedBox(decoration: BoxDecoration(color: Colors.white38))),
+                              ),
+                            );
+                          }),
+                        ),
+                        Container(height: 20, width: 10, decoration: const BoxDecoration(color: Color(0xFF151B2D), borderRadius: BorderRadius.horizontal(left: Radius.circular(10)))),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(child: _buildInfoBox(Icons.calendar_today, widget.date)),
-                      const SizedBox(width: 8),
-                      Expanded(child: _buildInfoBox(Icons.access_time, widget.time)),
-                      const SizedBox(width: 8),
-                      Expanded(child: _buildInfoBox(Icons.person, '${widget.pax} pax')),
-                    ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.flight_takeoff, color: Color(0xFFF27A22), size: 20),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Pick-up', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                                Text(widget.pickup, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                              ],
+                            )
+                          ],
+                        ),
+                        Container(
+                          margin: const EdgeInsets.only(left: 9, top: 4, bottom: 4),
+                          height: 15,
+                          width: 1,
+                          color: Colors.white24,
+                        ),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on, color: Color(0xFFF27A22), size: 20),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Drop-off', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                                Text(widget.dropoff, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                              ],
+                            )
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(child: _buildInfoBox(Icons.calendar_today, widget.date)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildInfoBox(Icons.access_time, widget.time)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildInfoBox(Icons.person, '${widget.pax} pax')),
+                          ],
+                        )
+                      ],
+                    ),
                   )
                 ],
               ),
@@ -2478,6 +2577,46 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
   }
 }
 
+class _ShimmerListWrapper extends StatefulWidget {
+  final Widget child;
+  const _ShimmerListWrapper({required this.child});
+  @override
+  State<_ShimmerListWrapper> createState() => _ShimmerListWrapperState();
+}
+
+class _ShimmerListWrapperState extends State<_ShimmerListWrapper> {
+  bool _isLoading = true;
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _isLoading = false);
+    });
+  }
+  @override
+  Widget build(BuildContext context) {
+    if (!_isLoading) return widget.child;
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: 4,
+      itemBuilder: (context, index) {
+        return shimmer.Shimmer.fromColors(
+          baseColor: const Color(0xFF1E2742),
+          highlightColor: const Color(0xFF2C3E66),
+          child: Container(
+            height: 120,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 // ================== RATING SCREEN ==================
 class RatingScreen extends StatefulWidget {
   final Map<String, dynamic>? bookingData;
@@ -2627,15 +2766,23 @@ class _RatingScreenState extends State<RatingScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.green, width: 2),
+        AntiInvertFilter(
+          child: Lottie.network(
+            'https://assets2.lottiefiles.com/packages/lf20_jbrw3hcz.json',
+            width: 150,
+            height: 150,
+            repeat: false,
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.green, width: 2),
+              ),
+              child: const Icon(Icons.check, color: Colors.green, size: 40),
+            ),
           ),
-          child: const Icon(Icons.check, color: Colors.green, size: 40),
         ),
         const SizedBox(height: 24),
         const Text('Thank You!',
@@ -2690,15 +2837,23 @@ class BookingSuccessScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const Spacer(),
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.green, width: 2),
+        AntiInvertFilter(
+          child: Lottie.network(
+            'https://assets2.lottiefiles.com/packages/lf20_jbrw3hcz.json',
+            width: 150,
+            height: 150,
+            repeat: false,
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.green, width: 2),
+              ),
+              child: const Icon(Icons.check, color: Colors.green, size: 40),
+            ),
           ),
-          child: const Icon(Icons.check, color: Colors.green, size: 40),
         ),
         const SizedBox(height: 24),
         const Text(
@@ -2713,20 +2868,72 @@ class BookingSuccessScreen extends StatelessWidget {
         ),
         const SizedBox(height: 40),
         Container(
-          padding: const EdgeInsets.all(20),
+          width: double.infinity,
           decoration: BoxDecoration(
             color: const Color(0xFF1E2742),
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFF27A22).withOpacity(0.5)),
           ),
           child: Column(
             children: [
-              _buildDetailRow('Booking ID', bookingId),
-              const Divider(color: Colors.white10, height: 24),
-              _buildDetailRow('Vehicle', vehicleName),
-              const Divider(color: Colors.white10, height: 24),
-              _buildDetailRow('Date & Time', '$date, $time'),
-              const Divider(color: Colors.white10, height: 24),
-              _buildDetailRow('Route', '${pickup.split(' ')[0]} → ${dropoff.split(' ')[0]}'),
+              // Map Placeholder
+              Container(
+                height: 120,
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                  child: AntiInvertFilter(
+                    child: Image.network(
+                      'https://static-maps.yandex.ru/1.x/?lang=en-US&ll=30.7133,36.8969&z=11&l=map&size=600,200',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: const Color(0xFF2C3E66),
+                        child: const Center(child: Icon(Icons.map, color: Colors.white24, size: 50)),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Dashed separator (Ticket look)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Container(height: 20, width: 10, decoration: const BoxDecoration(color: Color(0xFF151B2D), borderRadius: BorderRadius.horizontal(right: Radius.circular(10)))),
+                    Expanded(
+                      child: LayoutBuilder(builder: (context, constraints) {
+                        return Flex(
+                          direction: Axis.horizontal,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(
+                            (constraints.constrainWidth() / 10).floor(),
+                            (_) => const SizedBox(width: 5, height: 1.5, child: DecoratedBox(decoration: BoxDecoration(color: Colors.white38))),
+                          ),
+                        );
+                      }),
+                    ),
+                    Container(height: 20, width: 10, decoration: const BoxDecoration(color: Color(0xFF151B2D), borderRadius: BorderRadius.horizontal(left: Radius.circular(10)))),
+                  ],
+                ),
+              ),
+              // Ticket details
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(
+                  children: [
+                    _buildDetailRow('Booking ID', bookingId),
+                    const SizedBox(height: 12),
+                    _buildDetailRow('Vehicle', vehicleName),
+                    const SizedBox(height: 12),
+                    _buildDetailRow('Date & Time', '$date, $time'),
+                    const SizedBox(height: 12),
+                    _buildDetailRow('Route', '${pickup.split(' ')[0]} → ${dropoff.split(' ')[0]}'),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -3101,6 +3308,42 @@ class _TourBookingScreenState extends State<TourBookingScreen> {
         ),
       ),
       body: content,
+    );
+  }
+}
+
+class InvertFilter extends StatelessWidget {
+  final Widget child;
+  const InvertFilter({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix([
+        -1,  0,  0, 0, 255,
+         0, -1,  0, 0, 255,
+         0,  0, -1, 0, 255,
+         0,  0,  0, 1, 0,
+      ]),
+      child: child,
+    );
+  }
+}
+
+class AntiInvertFilter extends StatelessWidget {
+  final Widget child;
+  const AntiInvertFilter({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, mode, _) {
+        if (mode == ThemeMode.light) {
+          return InvertFilter(child: child);
+        }
+        return child;
+      },
     );
   }
 }
