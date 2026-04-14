@@ -1,7 +1,0 @@
-feat: UI overhaul with Dark mode, animations and ticket design
-
-- Implemented reactive Light/Dark mode using ValueNotifier
-- Added Shimmer loading effect for search results
-- Integrated Lottie animations for booking success and rating screens
-- Redesigned booking summary as a dashed ticket interface
-- Added static map placeholder for visual route representation

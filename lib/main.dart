@@ -8,6 +8,12 @@ import 'package:shimmer/shimmer.dart' as shimmer;
 import 'models/login_request.dart';
 import 'models/register_request.dart';
 import 'services/auth_service.dart';
+import 'models/trip_models.dart';
+import 'services/trip_service.dart';
+import 'screens/trip/waiting_screen.dart';
+import 'screens/trip/live_trip_dashboard.dart';
+import 'screens/driver/driver_dashboard.dart';
+
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
@@ -680,7 +686,21 @@ class _MainScreenState extends State<MainScreen>
 
   @override
   Widget build(BuildContext context) {
-    final wide = _isWideScreen(context);
+    return ValueListenableBuilder<bool>(
+      valueListenable: TripService().isDriverMode,
+      builder: (context, isDriver, _) {
+        if (isDriver) {
+          return const DriverDashboard();
+        }
+
+        return ValueListenableBuilder<TripSession?>(
+          valueListenable: TripService().activeTrip,
+          builder: (context, activeTrip, _) {
+            if (activeTrip != null && activeTrip.status != TripStatus.completed) {
+              return const LiveTripDashboard();
+            }
+
+            final wide = _isWideScreen(context);
 
     Widget bookingForm = Container(
       decoration: BoxDecoration(
@@ -895,93 +915,97 @@ class _MainScreenState extends State<MainScreen>
     }
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.center,
-            colors: [Color(0xFFBA5A2B), Color(0xFF151B2D)],
-            stops: [0.0, 0.3],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.center,
+                colors: [Color(0xFFBA5A2B), Color(0xFF151B2D)],
+                stops: [0.0, 0.3],
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.directions_car_filled, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('RayRide', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                        ],
-                      ),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-                              );
-                            },
-                            child: Stack(
-                              children: [
-                                const Icon(Icons.notifications_none, color: Colors.white, size: 28),
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                    child: const Text('2', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
-                                  ),
-                                )
-                              ],
-                            ),
+                          const Row(
+                            children: [
+                              Icon(Icons.directions_car_filled, color: Colors.white),
+                              SizedBox(width: 8),
+                              Text('RayRide', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ],
                           ),
-                          const SizedBox(width: 16),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
-                            },
-                            child: const CircleAvatar(
-                              radius: 18,
-                              backgroundColor: Color(0xFFF27A22),
-                              child: Icon(Icons.person, color: Colors.white, size: 20),
-                            ),
+                          Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+                                  );
+                                },
+                                child: Stack(
+                                  children: [
+                                    const Icon(Icons.notifications_none, color: Colors.white, size: 28),
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                        child: const Text('2', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+                                },
+                                child: const CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: Color(0xFFF27A22),
+                                  child: Icon(Icons.person, color: Colors.white, size: 20),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
+                      const SizedBox(height: 20),
+                      Text(_greeting, style: const TextStyle(color: Color(0xFFFFB74D), fontSize: 14)),
+                      const SizedBox(height: 5),
+                      const Text('Where would you\nlike to go?',
+                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2)),
+                      const SizedBox(height: 5),
+                      const Text('Premium transfers across the Turkish Riviera', style: TextStyle(color: Colors.white54)),
+                      const SizedBox(height: 25),
+                      bookingForm,
+                      const SizedBox(height: 30),
+                      toursButton,
+                      const SizedBox(height: 30),
+                      const Text('Popular Routes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const SizedBox(height: 16),
+                      routeCards,
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  Text(_greeting, style: const TextStyle(color: Color(0xFFFFB74D), fontSize: 14)),
-                  const SizedBox(height: 5),
-                  const Text('Where would you\nlike to go?',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2)),
-                  const SizedBox(height: 5),
-                  const Text('Premium transfers across the Turkish Riviera', style: TextStyle(color: Colors.white54)),
-                  const SizedBox(height: 25),
-                  bookingForm,
-                  const SizedBox(height: 30),
-                  toursButton,
-                  const SizedBox(height: 30),
-                  const Text('Popular Routes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                  const SizedBox(height: 16),
-                  routeCards,
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
+        },
+      );
   }
 
   void _showLocationPicker({
@@ -1296,6 +1320,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
 
+                  const SizedBox(height: 30),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E2742),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                    ),
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: TripService().isDriverMode,
+                      builder: (context, isDriver, _) {
+                        return SwitchListTile(
+                          title: const Text('Driver Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          subtitle: Text(isDriver ? 'You are currently Online' : 'Switch to accept rides', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                          secondary: Icon(Icons.drive_eta, color: isDriver ? Colors.blue : Colors.white38),
+                          value: isDriver,
+                          activeColor: Colors.blue,
+                          onChanged: (val) {
+                            TripService().isDriverMode.value = val;
+                            if (val) {
+                              Navigator.of(context).popUntil((route) => route.isFirst);
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ),
                   const SizedBox(height: 30),
                   const Align(alignment: Alignment.centerLeft, child: Text('Recent Trips', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white))),
                   const SizedBox(height: 16),
@@ -2340,25 +2390,29 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  await saveBooking({
-                    'vehicleName': widget.vehicleName,
-                    'pickup': widget.pickup,
-                    'dropoff': widget.dropoff,
-                    'date': widget.date,
-                    'time': widget.time,
-                    'price': widget.price,
-                  });
-                  if (!context.mounted) return;
-                  Navigator.push(
+                  // 1. Create a RideRequest with demo values
+                  // Note: Locations are mocked to fixed coordinates for presentation stability
+                  final request = RideRequest(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    passengerName: "Passenger", // Hardcoded for demo simplicity
+                    pickupName: widget.pickup,
+                    dropoffName: widget.dropoff,
+                    pickupLat: 36.8969, // Mock coordinate
+                    pickupLng: 30.7133, // Mock coordinate
+                    destLat: 36.8848,   // Mock destination
+                    destLng: 30.7056,   // Mock destination
+                    price: double.tryParse(widget.price.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+                  );
+
+                  // 2. Submit the request to TripService
+                  TripService().createRequest(request);
+
+                  // 3. Navigate to WaitingScreen
+                  if (!mounted) return;
+                  Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => BookingSuccessScreen(
-                        vehicleName: widget.vehicleName,
-                        date: widget.date,
-                        time: widget.time,
-                        pickup: widget.pickup,
-                        dropoff: widget.dropoff,
-                      ),
+                      builder: (context) => WaitingScreen(request: request),
                     ),
                   );
                 },

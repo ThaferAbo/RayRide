@@ -43,3 +43,17 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# AI/Agent Data
+.gemini/
+
+# Temporary / Output Text Files
+build_error.txt
+flutter_doctor_output.txt
+commit_msg.txt
+
+# IDE Specific
+.run/
+
+# Backend API
+Backend/
