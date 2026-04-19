@@ -1,8 +1,14 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:latlong2/latlong.dart';
+
 import '../models/trip_models.dart';
+import 'routing_service.dart';
 
 class TripService {
+  static const int _pickupSteps = 8;
+  static const int _destinationSteps = 12;
+
   // Singleton pattern
   static final TripService _instance = TripService._internal();
   factory TripService() => _instance;
@@ -15,8 +21,13 @@ class TripService {
   final ValueNotifier<List<RideRequest>> pendingRequests = ValueNotifier<List<RideRequest>>([]);
   final ValueNotifier<TripSession?> activeTrip = ValueNotifier<TripSession?>(null);
 
+  final RoutingService _routingService = RoutingService();
   Timer? _simulationTimer;
   int _currentTick = 0;
+  List<LatLng> _pickupLegPositions = const [];
+  List<LatLng> _destinationLegPositions = const [];
+  int _pickupLegEtaMinutes = 15;
+  int _destinationLegEtaMinutes = 12;
 
   // Constants for simulation (Antalya region)
   final double _initialDriverLat = 36.8840;
@@ -40,18 +51,18 @@ class TripService {
       status: TripStatus.accepted,
       driverLat: _initialDriverLat,
       driverLng: _initialDriverLng,
-      eta: 15,
+      eta: _pickupLegEtaMinutes,
     );
 
-    // Start simulation
-    _startSimulation();
+    _prepareSimulationAndStart(request);
   }
 
   void completeTrip() {
     _simulationTimer?.cancel();
     if (activeTrip.value != null) {
-      activeTrip.value!.status = TripStatus.completed;
-      activeTrip.notifyListeners(); // Force update
+      final trip = activeTrip.value!;
+      trip.status = TripStatus.completed;
+      _publishTrip(trip);
     }
     // We keep activeTrip for a moment so the UI can show completion
   }
@@ -61,6 +72,58 @@ class TripService {
     activeTrip.value = null;
     pendingRequests.value = [];
     _currentTick = 0;
+    _pickupLegPositions = const [];
+    _destinationLegPositions = const [];
+    _pickupLegEtaMinutes = 15;
+    _destinationLegEtaMinutes = 12;
+  }
+
+  Future<void> _prepareSimulationAndStart(RideRequest request) async {
+    _pickupLegPositions = _buildLinearStepPositions(
+      start: LatLng(_initialDriverLat, _initialDriverLng),
+      end: LatLng(request.pickupLat, request.pickupLng),
+      totalSteps: _pickupSteps,
+    );
+    _destinationLegPositions = _buildLinearStepPositions(
+      start: LatLng(request.pickupLat, request.pickupLng),
+      end: LatLng(request.destLat, request.destLng),
+      totalSteps: _destinationSteps,
+    );
+    _pickupLegEtaMinutes = 15;
+    _destinationLegEtaMinutes = 12;
+
+    final pickupRoute = await _routingService.fetchDrivingRoute(
+      start: LatLng(_initialDriverLat, _initialDriverLng),
+      end: LatLng(request.pickupLat, request.pickupLng),
+    );
+    if (pickupRoute != null) {
+      _pickupLegPositions = _buildStepPositionsFromRoute(
+        routePoints: pickupRoute.points,
+        totalSteps: _pickupSteps,
+      );
+      _pickupLegEtaMinutes = pickupRoute.duration.inMinutes.clamp(1, 9999).toInt();
+    }
+
+    final destinationRoute = await _routingService.fetchDrivingRoute(
+      start: LatLng(request.pickupLat, request.pickupLng),
+      end: LatLng(request.destLat, request.destLng),
+    );
+    if (destinationRoute != null) {
+      _destinationLegPositions = _buildStepPositionsFromRoute(
+        routePoints: destinationRoute.points,
+        totalSteps: _destinationSteps,
+      );
+      _destinationLegEtaMinutes = destinationRoute.duration.inMinutes.clamp(1, 9999).toInt();
+    }
+
+    final trip = activeTrip.value;
+    if (trip == null || trip.request.id != request.id) {
+      return;
+    }
+
+    trip.eta = _pickupLegEtaMinutes;
+    _publishTrip(trip);
+    _startSimulation();
   }
 
   void _startSimulation() {
@@ -77,33 +140,36 @@ class TripService {
       _currentTick++;
 
       // Simulating Lifecycle
-      if (_currentTick < 8) {
+      if (_currentTick < _pickupSteps) {
         // MOVING TO PICKUP
         trip.status = TripStatus.arriving;
-        _interpolatePosition(
-          trip,
-          _initialDriverLat, _initialDriverLng,
-          trip.request.pickupLat, trip.request.pickupLng,
-          _currentTick, 8,
+        _applyStepPosition(trip, _pickupLegPositions, _currentTick);
+        trip.eta = _remainingEtaMinutes(
+          fullEtaMinutes: _pickupLegEtaMinutes,
+          currentStep: _currentTick,
+          totalSteps: _pickupSteps,
         );
-        trip.eta = 8 - _currentTick;
-      } else if (_currentTick == 8) {
+      } else if (_currentTick == _pickupSteps) {
         // AT PICKUP
         trip.status = TripStatus.started;
         trip.driverLat = trip.request.pickupLat;
         trip.driverLng = trip.request.pickupLng;
-        trip.eta = 12; // Time to destination starts
-      } else if (_currentTick > 8 && _currentTick < 20) {
+        trip.eta = _destinationLegEtaMinutes;
+      } else if (_currentTick > _pickupSteps && _currentTick < _pickupSteps + _destinationSteps) {
         // MOVING TO DESTINATION
         trip.status = TripStatus.started;
-        _interpolatePosition(
+        final destinationStep = _currentTick - _pickupSteps;
+        _applyStepPosition(
           trip,
-          trip.request.pickupLat, trip.request.pickupLng,
-          trip.request.destLat, trip.request.destLng,
-          _currentTick - 8, 12,
+          _destinationLegPositions,
+          destinationStep,
         );
-        trip.eta = 20 - _currentTick;
-      } else if (_currentTick >= 20) {
+        trip.eta = _remainingEtaMinutes(
+          fullEtaMinutes: _destinationLegEtaMinutes,
+          currentStep: destinationStep,
+          totalSteps: _destinationSteps,
+        );
+      } else if (_currentTick >= _pickupSteps + _destinationSteps) {
         // ARRIVED
         trip.status = TripStatus.completed;
         trip.driverLat = trip.request.destLat;
@@ -112,18 +178,77 @@ class TripService {
         timer.cancel();
       }
 
-      activeTrip.notifyListeners();
+      _publishTrip(trip);
     });
   }
 
-  void _interpolatePosition(
-    TripSession trip,
-    double startLat, double startLng,
-    double endLat, double endLng,
-    int step, int totalSteps,
-  ) {
-    double t = step / totalSteps;
-    trip.driverLat = startLat + (endLat - startLat) * t;
-    trip.driverLng = startLng + (endLng - startLng) * t;
+  void _applyStepPosition(TripSession trip, List<LatLng> positions, int step) {
+    if (positions.isEmpty) {
+      return;
+    }
+    final index = step.clamp(1, positions.length) - 1;
+    final point = positions[index];
+    trip.driverLat = point.latitude;
+    trip.driverLng = point.longitude;
+  }
+
+  List<LatLng> _buildStepPositionsFromRoute({
+    required List<LatLng> routePoints,
+    required int totalSteps,
+  }) {
+    if (routePoints.isEmpty) {
+      return const [];
+    }
+
+    if (routePoints.length == 1) {
+      return List<LatLng>.filled(totalSteps, routePoints.first);
+    }
+
+    final positions = <LatLng>[];
+    for (var step = 1; step <= totalSteps; step++) {
+      final progress = step / totalSteps;
+      final rawIndex = ((routePoints.length - 1) * progress).round();
+      final boundedIndex = rawIndex.clamp(0, routePoints.length - 1);
+      positions.add(routePoints[boundedIndex]);
+    }
+    return positions;
+  }
+
+  List<LatLng> _buildLinearStepPositions({
+    required LatLng start,
+    required LatLng end,
+    required int totalSteps,
+  }) {
+    final positions = <LatLng>[];
+    for (var step = 1; step <= totalSteps; step++) {
+      final t = step / totalSteps;
+      positions.add(
+        LatLng(
+          start.latitude + (end.latitude - start.latitude) * t,
+          start.longitude + (end.longitude - start.longitude) * t,
+        ),
+      );
+    }
+    return positions;
+  }
+
+  int _remainingEtaMinutes({
+    required int fullEtaMinutes,
+    required int currentStep,
+    required int totalSteps,
+  }) {
+    final remainingRatio = (totalSteps - currentStep) / totalSteps;
+    final eta = (fullEtaMinutes * remainingRatio).ceil();
+    return eta.clamp(0, 9999).toInt();
+  }
+
+  void _publishTrip(TripSession trip) {
+    activeTrip.value = TripSession(
+      request: trip.request,
+      status: trip.status,
+      driverLat: trip.driverLat,
+      driverLng: trip.driverLng,
+      eta: trip.eta,
+    );
   }
 }

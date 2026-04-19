@@ -71,7 +71,7 @@ class AuthService {
 
   String get baseUrl {
     if (kIsWeb) {
-      return 'https://localhost:$_port';
+      return 'http://localhost:5000';
     }
     if (defaultTargetPlatform == TargetPlatform.android) {
       return 'https://10.0.2.2:$_port';

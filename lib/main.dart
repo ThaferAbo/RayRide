@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:shimmer/shimmer.dart' as shimmer;
 import 'models/login_request.dart';
 import 'models/register_request.dart';
 import 'services/auth_service.dart';
+import 'services/geocoding_service.dart';
 import 'models/trip_models.dart';
 import 'services/trip_service.dart';
 import 'screens/trip/waiting_screen.dart';
@@ -31,7 +33,7 @@ class RayRideApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
-      builder: (_, ThemeMode currentMode, __) {
+      builder: (context, ThemeMode currentMode, child) {
         return MaterialApp(
           title: 'RayRide',
           debugShowCheckedModeBanner: false,
@@ -579,8 +581,11 @@ Future<List<Map<String, dynamic>>> loadBookings() async {
 
 class _MainScreenState extends State<MainScreen>
     with SingleTickerProviderStateMixin {
+  final GeocodingService _geocodingService = GeocodingService();
   String selectedPickup = "Antalya Airport (AYT)";
   String selectedDropoff = "Belek Hotel Zone";
+  GeocodedLocation? _selectedPickupLocation;
+  GeocodedLocation? _selectedDropoffLocation;
   DateTime selectedDate = DateTime.now();
   TimeOfDay selectedTime = const TimeOfDay(hour: 14, minute: 30);
   final _authService = AuthService();
@@ -645,7 +650,7 @@ class _MainScreenState extends State<MainScreen>
               surface: Color(0xFF2C3E66),
               onSurface: Colors.white,
             ),
-            dialogBackgroundColor: const Color(0xFF1E2742),
+            dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF1E2742)),
           ),
           child: child!,
         );
@@ -671,7 +676,7 @@ class _MainScreenState extends State<MainScreen>
               surface: Color(0xFF2C3E66),
               onSurface: Colors.white,
             ),
-            dialogBackgroundColor: const Color(0xFF1E2742),
+            dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF1E2742)),
           ),
           child: child!,
         );
@@ -696,7 +701,7 @@ class _MainScreenState extends State<MainScreen>
         return ValueListenableBuilder<TripSession?>(
           valueListenable: TripService().activeTrip,
           builder: (context, activeTrip, _) {
-            if (activeTrip != null && activeTrip.status != TripStatus.completed) {
+            if (activeTrip != null) {
               return const LiveTripDashboard();
             }
 
@@ -710,48 +715,60 @@ class _MainScreenState extends State<MainScreen>
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          Stack(
-            alignment: Alignment.centerRight,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Column(
-                children: [
-                  _buildLocationRow(
-                    Icons.flight_takeoff,
-                    "PICK-UP",
-                    selectedPickup,
-                    onTap: () => _showLocationPicker(
-                      title: "Select Pick-up Location",
-                      currentValue: selectedPickup,
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildLocationRow(
+                      Icons.flight_takeoff,
+                      "PICK-UP",
+                      selectedPickup,
+                      onTap: () => _showLocationPicker(
+                        title: "Select Pick-up Location",
+                        currentValue: selectedPickup,
                       icon: Icons.flight_takeoff,
-                      onSelected: (val) => setState(() => selectedPickup = val),
+                      onSelected: (location) => setState(() {
+                        selectedPickup = location.displayLabel;
+                        _selectedPickupLocation = location;
+                      }),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 11),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(width: 1, height: 20, color: Colors.white24),
                     ),
-                  ),
-                  _buildLocationRow(
-                    Icons.location_on,
-                    "DROP-OFF",
-                    selectedDropoff,
-                    onTap: () => _showLocationPicker(
-                      title: "Select Drop-off Location",
-                      currentValue: selectedDropoff,
+                    Padding(
+                      padding: const EdgeInsets.only(left: 11),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(width: 1, height: 20, color: Colors.white24),
+                      ),
+                    ),
+                    _buildLocationRow(
+                      Icons.location_on,
+                      "DROP-OFF",
+                      selectedDropoff,
+                      onTap: () => _showLocationPicker(
+                        title: "Select Drop-off Location",
+                        currentValue: selectedDropoff,
                       icon: Icons.location_on,
-                      onSelected: (val) => setState(() => selectedDropoff = val),
+                      onSelected: (location) => setState(() {
+                        selectedDropoff = location.displayLabel;
+                        _selectedDropoffLocation = location;
+                      }),
                     ),
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 12),
               GestureDetector(
                 onTap: () {
                   setState(() {
                     final temp = selectedPickup;
                     selectedPickup = selectedDropoff;
                     selectedDropoff = temp;
+                    final tempLocation = _selectedPickupLocation;
+                    _selectedPickupLocation = _selectedDropoffLocation;
+                    _selectedDropoffLocation = tempLocation;
                   });
                   _swapCtrl.forward(from: 0);
                 },
@@ -767,7 +784,7 @@ class _MainScreenState extends State<MainScreen>
                     child: const Icon(Icons.swap_vert, color: Color(0xFFF27A22)),
                   ),
                 ),
-              )
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -803,6 +820,8 @@ class _MainScreenState extends State<MainScreen>
                     builder: (context) => ChooseRideScreen(
                       pickup: selectedPickup,
                       dropoff: selectedDropoff,
+                      pickupLocation: _selectedPickupLocation,
+                      dropoffLocation: _selectedDropoffLocation,
                       date: "${selectedDate.day} Feb",
                       time: selectedTime.format(context),
                     ),
@@ -1012,59 +1031,217 @@ class _MainScreenState extends State<MainScreen>
     required String title,
     required String currentValue,
     required IconData icon,
-    required Function(String) onSelected,
+    required ValueChanged<GeocodedLocation> onSelected,
   }) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF2C3E66),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+        final searchController = TextEditingController(text: currentValue);
+        Timer? debounce;
+        var requestId = 0;
+        var suggestions = <GeocodedLocation>[];
+        var isLoading = false;
+        String? errorText;
+
+        Future<void> loadSuggestions(StateSetter setModalState, String query) async {
+          final trimmed = query.trim();
+          if (trimmed.isEmpty) {
+            setModalState(() {
+              suggestions = const [];
+              isLoading = false;
+              errorText = null;
+            });
+            return;
+          }
+
+          final currentRequestId = ++requestId;
+          setModalState(() {
+            isLoading = true;
+            errorText = null;
+          });
+
+          try {
+            final results = await _geocodingService.searchLocations(trimmed);
+            if (currentRequestId != requestId) {
+              return;
+            }
+            setModalState(() {
+              suggestions = results;
+              isLoading = false;
+              errorText = results.isEmpty ? 'No locations found.' : null;
+            });
+          } on GeocodingException catch (e) {
+            if (currentRequestId != requestId) {
+              return;
+            }
+            setModalState(() {
+              suggestions = const [];
+              isLoading = false;
+              errorText = e.message;
+            });
+          }
+        }
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> triggerSearch(String query) async {
+              debounce?.cancel();
+              debounce = Timer(const Duration(milliseconds: 300), () {
+                loadSuggestions(setModalState, query);
+              });
+            }
+
+            Future<void> selectQuickPick(String label) async {
+              setModalState(() {
+                isLoading = true;
+                errorText = null;
+              });
+              try {
+                final location = await _geocodingService.searchLocation(label);
+                if (!context.mounted) return;
+                debounce?.cancel();
+                onSelected(location);
+                Navigator.pop(context);
+              } on GeocodingException catch (e) {
+                if (!context.mounted) return;
+                setModalState(() {
+                  isLoading = false;
+                  errorText = e.message;
+                });
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                top: 20,
+                left: 16,
+                right: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 20),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: locations.length,
-                  itemBuilder: (context, index) {
-                    final location = locations[index];
-                    final isSelected = location == currentValue;
-                    return ListTile(
-                      leading: Icon(
-                        icon,
-                        color: isSelected ? const Color(0xFFF27A22) : Colors.white54,
-                      ),
-                      title: Text(
-                        location,
-                        style: TextStyle(
-                          color: isSelected ? const Color(0xFFF27A22) : Colors.white,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              child: SizedBox(
+                height: 420,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                    ),
+                    Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: searchController,
+                      autofocus: true,
+                      onChanged: triggerSearch,
+                      decoration: InputDecoration(
+                        hintText: 'Search location',
+                        hintStyle: const TextStyle(color: Colors.white38),
+                        prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                        filled: true,
+                        fillColor: const Color(0xFF1E2742),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
                         ),
                       ),
-                      trailing: isSelected
-                          ? const Icon(Icons.check_circle, color: Color(0xFFF27A22))
-                          : null,
-                      onTap: () {
-                        onSelected(location);
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: isLoading
+                          ? const Center(child: CircularProgressIndicator(color: Color(0xFFF27A22)))
+                          : searchController.text.trim().isEmpty
+                              ? ListView(
+                                  children: [
+                                    if (errorText != null) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 12),
+                                        child: Text(
+                                          errorText!,
+                                          style: const TextStyle(color: Colors.redAccent),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ],
+                                    ...locations.map((label) {
+                                      final isSelected = label == currentValue;
+                                      return ListTile(
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                        leading: Icon(
+                                          icon,
+                                          color: isSelected ? const Color(0xFFF27A22) : Colors.white54,
+                                        ),
+                                        title: Text(
+                                          label,
+                                          style: TextStyle(
+                                            color: isSelected ? const Color(0xFFF27A22) : Colors.white,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          ),
+                                        ),
+                                        trailing: isSelected
+                                            ? const Icon(Icons.check_circle, color: Color(0xFFF27A22))
+                                            : null,
+                                        onTap: () => selectQuickPick(label),
+                                      );
+                                    }),
+                                  ],
+                                )
+                              : suggestions.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        errorText ?? 'No locations found.',
+                                        style: const TextStyle(color: Colors.white70),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    )
+                              : ListView.builder(
+                                  itemCount: suggestions.length,
+                                  itemBuilder: (context, index) {
+                                    final location = suggestions[index];
+                                    final isSelected = location.name == currentValue;
+                                    return ListTile(
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      leading: Icon(
+                                        icon,
+                                        color: isSelected ? const Color(0xFFF27A22) : Colors.white54,
+                                      ),
+                                        title: Text(
+                                          location.displayLabel,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: isSelected ? const Color(0xFFF27A22) : Colors.white,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          location.name,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                        ),
+                                      trailing: isSelected
+                                          ? const Icon(Icons.check_circle, color: Color(0xFFF27A22))
+                                          : null,
+                                      onTap: () {
+                                        debounce?.cancel();
+                                        onSelected(location);
+                                        Navigator.pop(context);
+                                      },
+                                    );
+                                  },
+                                ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -1086,9 +1263,16 @@ class _MainScreenState extends State<MainScreen>
                   Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
+                      Expanded(
+                        child: Text(
+                          value,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       const Icon(Icons.chevron_right, color: Colors.white24, size: 18),
                     ],
                   ),
@@ -1325,7 +1509,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E2742),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                     ),
                     child: ValueListenableBuilder<bool>(
                       valueListenable: TripService().isDriverMode,
@@ -1335,7 +1519,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: Text(isDriver ? 'You are currently Online' : 'Switch to accept rides', style: const TextStyle(color: Colors.white54, fontSize: 12)),
                           secondary: Icon(Icons.drive_eta, color: isDriver ? Colors.blue : Colors.white38),
                           value: isDriver,
-                          activeColor: Colors.blue,
+                          activeThumbColor: Colors.blue,
                           onChanged: (val) {
                             TripService().isDriverMode.value = val;
                             if (val) {
@@ -1362,9 +1546,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () async {
+                        final navigator = Navigator.of(context);
                         await _authService.logout();
                         if (!mounted) return;
-                        Navigator.of(context).pushAndRemoveUntil(
+                        navigator.pushAndRemoveUntil(
                           MaterialPageRoute(builder: (context) => const SignInScreen()),
                               (Route<dynamic> route) => false,
                         );
@@ -1474,6 +1659,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 class ChooseRideScreen extends StatelessWidget {
   final String pickup;
   final String dropoff;
+  final GeocodedLocation? pickupLocation;
+  final GeocodedLocation? dropoffLocation;
   final String date;
   final String time;
 
@@ -1481,6 +1668,8 @@ class ChooseRideScreen extends StatelessWidget {
     super.key,
     required this.pickup,
     required this.dropoff,
+    this.pickupLocation,
+    this.dropoffLocation,
     required this.date,
     required this.time,
   });
@@ -1675,7 +1864,7 @@ class ChooseRideScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: isVip ? const Color(0xFF3B2A2E) : const Color(0xFF1E2742), // Brownish for VIP, Blue for standard
         borderRadius: BorderRadius.circular(16),
-        border: isVip ? Border.all(color: Colors.orangeAccent.withOpacity(0.2)) : null,
+        border: isVip ? Border.all(color: Colors.orangeAccent.withValues(alpha: 0.2)) : null,
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1747,6 +1936,8 @@ class ChooseRideScreen extends StatelessWidget {
                           imagePath: imagePath,
                           pickup: pickup, // Passed from ChooseRideScreen
                           dropoff: dropoff, // Passed from ChooseRideScreen
+                          pickupLocation: pickupLocation,
+                          dropoffLocation: dropoffLocation,
                           date: date, // Passed from ChooseRideScreen
                           time: time, // Passed from ChooseRideScreen
                           pax: pax.toString(),
@@ -1806,7 +1997,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'isUnread': true,
       'icon': Icons.check,
       'iconColor': Colors.greenAccent,
-      'iconBg': Colors.green.withOpacity(0.2),
+      'iconBg': Colors.green.withValues(alpha: 0.2),
     },
     {
       'title': '20% Off Your Next Ride!',
@@ -1816,7 +2007,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'isUnread': true,
       'icon': Icons.local_offer,
       'iconColor': Colors.orangeAccent,
-      'iconBg': Colors.orange.withOpacity(0.2),
+      'iconBg': Colors.orange.withValues(alpha: 0.2),
     },
     {
       'title': 'Rate Your Last Trip',
@@ -1826,7 +2017,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'isUnread': false,
       'icon': Icons.star,
       'iconColor': const Color(0xFFF27A22),
-      'iconBg': const Color(0xFFF27A22).withOpacity(0.2),
+      'iconBg': const Color(0xFFF27A22).withValues(alpha: 0.2),
     },
     {
       'title': 'Driver On The Way',
@@ -1846,7 +2037,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'isUnread': false,
       'icon': Icons.auto_awesome,
       'iconColor': Colors.purpleAccent,
-      'iconBg': Colors.purple.withOpacity(0.2),
+      'iconBg': Colors.purple.withValues(alpha: 0.2),
     },
     {
       'title': 'Payment Successful',
@@ -1856,7 +2047,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'isUnread': false,
       'icon': Icons.credit_card,
       'iconColor': Colors.blueAccent,
-      'iconBg': Colors.blue.withOpacity(0.2),
+      'iconBg': Colors.blue.withValues(alpha: 0.2),
     },
     {
       'title': 'Gold Member Reward',
@@ -1866,7 +2057,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'isUnread': false,
       'icon': Icons.card_giftcard,
       'iconColor': Colors.amber,
-      'iconBg': Colors.amber.withOpacity(0.2),
+      'iconBg': Colors.amber.withValues(alpha: 0.2),
     },
   ];
 
@@ -2030,12 +2221,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // Resolve icons and colors for dynamic/static notifications
     IconData icon = item['icon'] is IconData ? item['icon'] : Icons.notifications;
     Color iconColor = item['iconColor'] is Color ? item['iconColor'] : const Color(0xFFF27A22);
-    Color iconBg = item['iconBg'] is Color ? item['iconBg'] : const Color(0xFFF27A22).withOpacity(0.1);
+    Color iconBg = item['iconBg'] is Color ? item['iconBg'] : const Color(0xFFF27A22).withValues(alpha: 0.1);
 
     if (item['type'] == 'rating') {
       icon = Icons.star_rate;
       iconColor = const Color(0xFFF27A22);
-      iconBg = const Color(0xFFF27A22).withOpacity(0.1);
+      iconBg = const Color(0xFFF27A22).withValues(alpha: 0.1);
     }
 
     return GestureDetector(
@@ -2043,7 +2234,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ? () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => RatingScreen(
+                  builder: (context) => RatingScreen(
                     bookingData: item['booking'] as Map<String, dynamic>?,
                   ),
                 ),
@@ -2056,7 +2247,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           color: const Color(0xFF1E2742),
           borderRadius: BorderRadius.circular(12),
           border: isRating
-              ? Border.all(color: const Color(0xFFF27A22).withOpacity(0.4))
+              ? Border.all(color: const Color(0xFFF27A22).withValues(alpha: 0.4))
               : null,
         ),
         child: Row(
@@ -2106,9 +2297,12 @@ class ConfirmBookingScreen extends StatefulWidget {
   final String imagePath;
   final String pickup;
   final String dropoff;
+  final GeocodedLocation? pickupLocation;
+  final GeocodedLocation? dropoffLocation;
   final String date;
   final String time;
   final String pax;
+  final bool useGeocoding;
 
   const ConfirmBookingScreen({
     super.key,
@@ -2118,9 +2312,12 @@ class ConfirmBookingScreen extends StatefulWidget {
     required this.imagePath,
     required this.pickup,
     required this.dropoff,
+    this.pickupLocation,
+    this.dropoffLocation,
     required this.date,
     required this.time,
     required this.pax,
+    this.useGeocoding = true,
   });
 
   @override
@@ -2128,7 +2325,9 @@ class ConfirmBookingScreen extends StatefulWidget {
 }
 
 class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
+  final GeocodingService _geocodingService = GeocodingService();
   int selectedPayment = 0;
+  bool _isSubmitting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -2158,7 +2357,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
             padding: const EdgeInsets.only(right: 16.0, top: 10, bottom: 10),
             child: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
               child: const Icon(Icons.lock, color: Colors.greenAccent, size: 16),
             ),
           )
@@ -2181,7 +2380,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
                     child: const Icon(Icons.lock, color: Colors.greenAccent, size: 16),
                   ),
                 ],
@@ -2237,7 +2436,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFF1E2742),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF27A22).withOpacity(0.5)),
+                border: Border.all(color: const Color(0xFFF27A22).withValues(alpha: 0.5)),
               ),
               child: Column(
                 children: [
@@ -2389,35 +2588,21 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () async {
-                  // 1. Create a RideRequest with demo values
-                  // Note: Locations are mocked to fixed coordinates for presentation stability
-                  final request = RideRequest(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    passengerName: "Passenger", // Hardcoded for demo simplicity
-                    pickupName: widget.pickup,
-                    dropoffName: widget.dropoff,
-                    pickupLat: 36.8969, // Mock coordinate
-                    pickupLng: 30.7133, // Mock coordinate
-                    destLat: 36.8848,   // Mock destination
-                    destLng: 30.7056,   // Mock destination
-                    price: double.tryParse(widget.price.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
-                  );
-
-                  // 2. Submit the request to TripService
-                  TripService().createRequest(request);
-
-                  // 3. Navigate to WaitingScreen
-                  if (!mounted) return;
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => WaitingScreen(request: request),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.shield, color: Colors.white, size: 18),
-                label: const Text('Confirm & Pay', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+                onPressed: _isSubmitting ? null : _confirmBooking,
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.shield, color: Colors.white, size: 18),
+                label: Text(
+                  _isSubmitting ? 'Resolving Locations...' : 'Confirm & Pay',
+                  style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFF27A22),
                   padding: const EdgeInsets.symmetric(vertical: 18),
@@ -2435,6 +2620,73 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmBooking() async {
+    setState(() => _isSubmitting = true);
+
+    try {
+      final pickupLocation = widget.pickupLocation ?? (widget.useGeocoding
+          ? await _geocodingService.searchLocation(widget.pickup)
+          : const GeocodedLocation(
+              name: 'Antalya City Center',
+              displayLabel: 'Antalya City Center',
+              latitude: 36.8969,
+              longitude: 30.7133,
+            ));
+      final dropoffLocation = widget.dropoffLocation ?? (widget.useGeocoding
+          ? await _geocodingService.searchLocation(widget.dropoff)
+          : const GeocodedLocation(
+              name: 'Antalya Old Town',
+              displayLabel: 'Antalya Old Town',
+              latitude: 36.8848,
+              longitude: 30.7056,
+            ));
+
+      final request = RideRequest(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        passengerName: 'Passenger',
+        pickupName: widget.pickup,
+        dropoffName: widget.dropoff,
+        pickupLat: pickupLocation.latitude,
+        pickupLng: pickupLocation.longitude,
+        destLat: dropoffLocation.latitude,
+        destLng: dropoffLocation.longitude,
+        price: double.tryParse(widget.price.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+      );
+
+      TripService().createRequest(request);
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WaitingScreen(request: request),
+        ),
+      );
+    } on GeocodingException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to resolve trip locations right now. Please try again.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   Widget _buildInfoBox(IconData icon, String text) {
@@ -2830,7 +3082,7 @@ class _RatingScreenState extends State<RatingScreen> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.green, width: 2),
               ),
@@ -2901,7 +3153,7 @@ class BookingSuccessScreen extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.green, width: 2),
               ),
@@ -2926,7 +3178,7 @@ class BookingSuccessScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFF1E2742),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFF27A22).withOpacity(0.5)),
+            border: Border.all(color: const Color(0xFFF27A22).withValues(alpha: 0.5)),
           ),
           child: Column(
             children: [
@@ -3203,7 +3455,7 @@ class _TourBookingScreenState extends State<TourBookingScreen> {
               surface: Color(0xFF2C3E66),
               onSurface: Colors.white,
             ),
-            dialogBackgroundColor: const Color(0xFF1E2742),
+            dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF1E2742)),
           ),
           child: child!,
         );
@@ -3319,6 +3571,7 @@ class _TourBookingScreenState extends State<TourBookingScreen> {
                           date: "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
                           time: '09:00',
                           pax: pax.toString(),
+                          useGeocoding: false,
                         ),
                       ),
                     );
