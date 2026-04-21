@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
@@ -15,6 +16,8 @@ import 'services/trip_service.dart';
 import 'screens/trip/waiting_screen.dart';
 import 'screens/trip/live_trip_dashboard.dart';
 import 'screens/driver/driver_dashboard.dart';
+import 'models/app_role.dart';
+import 'screens/admin/admin_dashboard.dart';
 
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
@@ -194,7 +197,7 @@ class _SignInScreenState extends State<SignInScreen> {
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      _showError('Lütfen e-posta ve şifre alanlarını doldurun.');
+      _showError('Please fill in email and password fields.');
       return;
     }
 
@@ -374,12 +377,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     if (firstName.isEmpty || lastName.isEmpty || email.isEmpty ||
         userName.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
-      _showError('Lütfen tüm alanları doldurun.');
+      _showError('Please fill in all fields.');
       return;
     }
 
     if (password != confirmPassword) {
-      _showError('Şifreler eşleşmiyor.');
+      _showError('Passwords do not match.');
       return;
     }
 
@@ -398,7 +401,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Kayıt başarılı! Giriş yapabilirsiniz.'),
+          content: Text('Registration successful! You can now sign in.'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),
@@ -547,9 +550,9 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-// ─────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Helper: save a booking to SharedPreferences list
-// ─────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Future<void> saveBooking(Map<String, dynamic> booking) async {
   final prefs = await SharedPreferences.getInstance();
   
@@ -589,7 +592,7 @@ class _MainScreenState extends State<MainScreen>
   DateTime selectedDate = DateTime.now();
   TimeOfDay selectedTime = const TimeOfDay(hour: 14, minute: 30);
   final _authService = AuthService();
-  String _greeting = 'Hoş Geldiniz! ☀️';
+  String _greeting = 'Welcome!';
 
   late final AnimationController _swapCtrl;
   late final Animation<double> _swapAnim;
@@ -620,7 +623,7 @@ class _MainScreenState extends State<MainScreen>
     final userName = data['userName'] as String? ?? '';
     final name = firstName.isNotEmpty ? firstName : userName;
     if (name.isNotEmpty) {
-      setState(() => _greeting = 'Hoş Geldiniz, $name! ☀️');
+      setState(() => _greeting = 'Welcome, $name!');
     }
   }
 
@@ -691,10 +694,13 @@ class _MainScreenState extends State<MainScreen>
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: TripService().isDriverMode,
-      builder: (context, isDriver, _) {
-        if (isDriver) {
+    return ValueListenableBuilder<AppRole>(
+      valueListenable: TripService().currentRole,
+      builder: (context, role, _) {
+        if (role == AppRole.admin) {
+          return const AdminDashboard();
+        }
+        if (role == AppRole.driver) {
           return const DriverDashboard();
         }
 
@@ -846,7 +852,7 @@ class _MainScreenState extends State<MainScreen>
       child: Row(
         children: [
           _buildRouteCard("Airport", "Belek", "€35", "~30 min", "VIP Vito", Icons.airport_shuttle),
-          _buildRouteCard("Airport", "Kaleiçi", "€20", "~20 min", "Economy", Icons.directions_car),
+          _buildRouteCard("Airport", "Kaleici", "€20", "~20 min", "Economy", Icons.directions_car),
           _buildRouteCard("Airport", "Kemer", "€50", "~55 min", "Comfort", Icons.directions_bus),
         ],
       ),
@@ -912,7 +918,7 @@ class _MainScreenState extends State<MainScreen>
                                       const SizedBox(height: 16),
                                       _buildRouteCard("Airport", "Belek", "€35", "~30 min", "VIP Vito", Icons.airport_shuttle),
                                       const SizedBox(height: 12),
-                                      _buildRouteCard("Airport", "Kaleiçi", "€20", "~20 min", "Economy", Icons.directions_car),
+                                      _buildRouteCard("Airport", "Kaleici", "€20", "~20 min", "Economy", Icons.directions_car),
                                       const SizedBox(height: 12),
                                       _buildRouteCard("Airport", "Kemer", "€50", "~55 min", "Comfort", Icons.directions_bus),
                                     ],
@@ -1366,10 +1372,10 @@ void showLanguageDialog(BuildContext context) {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(title: const Text('🇬🇧 English', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pop(context)),
-          ListTile(title: const Text('🇹🇷 Türkçe', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pop(context)),
-          ListTile(title: const Text('🇸🇾 العربية', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pop(context)),
-          ListTile(title: const Text('🇷🇺 Русский', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pop(context)),
+          ListTile(title: const Text('English', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pop(context)),
+          ListTile(title: const Text('Turkish', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pop(context)),
+          ListTile(title: const Text('Arabic', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pop(context)),
+          ListTile(title: const Text('Russian', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pop(context)),
         ],
       ),
     ),
@@ -1511,23 +1517,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                     ),
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: TripService().isDriverMode,
-                      builder: (context, isDriver, _) {
-                        return SwitchListTile(
-                          title: const Text('Driver Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          subtitle: Text(isDriver ? 'You are currently Online' : 'Switch to accept rides', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                          secondary: Icon(Icons.drive_eta, color: isDriver ? Colors.blue : Colors.white38),
-                          value: isDriver,
-                          activeThumbColor: Colors.blue,
-                          onChanged: (val) {
-                            TripService().isDriverMode.value = val;
-                            if (val) {
-                              Navigator.of(context).popUntil((route) => route.isFirst);
-                            }
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('App Role (Demo)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                        const SizedBox(height: 12),
+                        ValueListenableBuilder<AppRole>(
+                          valueListenable: TripService().currentRole,
+                          builder: (context, currentRole, _) {
+                            return Wrap(
+                              spacing: 8,
+                              children: AppRole.values.map((role) {
+                                final isSelected = role == currentRole;
+                                return ChoiceChip(
+                                  label: Text(role.name.toUpperCase(), style: TextStyle(color: isSelected ? Colors.white : Colors.white54)),
+                                  selected: isSelected,
+                                  selectedColor: const Color(0xFFF27A22),
+                                  backgroundColor: const Color(0xFF2C3E66),
+                                  showCheckmark: false,
+                                  onSelected: (bool selected) {
+                                    if (selected) {
+                                      TripService().currentRole.value = role;
+                                      Navigator.of(context).popUntil((route) => route.isFirst);
+                                    }
+                                  },
+                                );
+                              }).toList(),
+                            );
                           },
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -2031,7 +2051,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     },
     {
       'title': 'AI Concierge Tip',
-      'message': 'The weather in Belek will be 28°C and sunny tomorrow. Perfect for visiting Aspendos! Shall I arrange a transfer?',
+      'message': 'The weather in Belek will be 28Â°C and sunny tomorrow. Perfect for visiting Aspendos! Shall I arrange a transfer?',
       'time': 'Yesterday',
       'category': 'System',
       'isUnread': false,
@@ -2992,8 +3012,8 @@ class _RatingScreenState extends State<RatingScreen> {
                   ),
                   Text(
                     widget.bookingData != null 
-                        ? '${widget.bookingData!['date']} · ${widget.bookingData!['vehicleName']}'
-                        : '15 Feb · Economy Sedan', 
+                        ? '${widget.bookingData!['date']} Â· ${widget.bookingData!['vehicleName']}'
+                        : '15 Feb Â· Economy Sedan', 
                     style: const TextStyle(color: Colors.white38, fontSize: 12)
                   ),
                 ],
@@ -3330,7 +3350,7 @@ class ToursScreen extends StatelessWidget {
             _buildTourCard(context, 'Aspendos & Perge', 'Explore ancient ruins and amphitheaters.', '€45'),
             _buildTourCard(context, 'Pamukkale Day Trip', 'Thermal pools and Hierapolis tour.', '€65'),
             _buildTourCard(context, 'Olympos Cable Car', 'Panoramic views from Mount Tahtali.', '€55'),
-            _buildTourCard(context, 'Kaleiçi Old Town Tour', 'Guided walking tour through historic Antalya.', '€25'),
+            _buildTourCard(context, 'Kaleici Old Town Tour', 'Guided walking tour through historic Antalya.', '€25'),
           ],
         ),
       ),

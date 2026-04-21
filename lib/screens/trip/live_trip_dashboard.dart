@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../main.dart';
+
 import '../../models/trip_models.dart';
 import '../../services/trip_service.dart';
 import 'trip_arrival_summary_screen.dart';
@@ -79,7 +81,18 @@ class _LiveTripDashboardState extends State<LiveTripDashboard> {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              // Clear trip state first so MainScreen does not immediately
+              // re-render LiveTripDashboard (it checks activeTrip != null).
+              TripService().resetService();
+              // Navigate to MainScreen as the only route -- safe regardless
+              // of whether this screen was pushed as a route or rendered
+              // inline by MainScreen's builder.
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const MainScreen()),
+                (route) => false,
+              );
+            },
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

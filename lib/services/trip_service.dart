@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../models/app_role.dart';
 import '../models/trip_models.dart';
 import 'routing_service.dart';
 
@@ -15,7 +16,7 @@ class TripService {
   TripService._internal();
 
   // Mode state
-  final ValueNotifier<bool> isDriverMode = ValueNotifier<bool>(false);
+  final ValueNotifier<AppRole> currentRole = ValueNotifier<AppRole>(AppRole.passenger);
 
   // Core state
   final ValueNotifier<List<RideRequest>> pendingRequests = ValueNotifier<List<RideRequest>>([]);
@@ -57,14 +58,19 @@ class TripService {
     _prepareSimulationAndStart(request);
   }
 
-  void completeTrip() {
+  bool completeTrip() {
     _simulationTimer?.cancel();
-    if (activeTrip.value != null) {
-      final trip = activeTrip.value!;
-      trip.status = TripStatus.completed;
-      _publishTrip(trip);
+    if (activeTrip.value == null) {
+      return false;
     }
-    // We keep activeTrip for a moment so the UI can show completion
+    final trip = activeTrip.value!;
+    trip.status = TripStatus.completed;
+    trip.eta = 0;
+    _publishTrip(trip);
+    // Keep the completed trip visible for 3 seconds, then clear so
+    // all dashboards (admin, driver, passenger) transition cleanly.
+    _scheduleClearAfterCompletion();
+    return true;
   }
 
   void resetService() {
@@ -176,6 +182,9 @@ class TripService {
         trip.driverLng = trip.request.destLng;
         trip.eta = 0;
         timer.cancel();
+        _publishTrip(trip);
+        _scheduleClearAfterCompletion();
+        return;
       }
 
       _publishTrip(trip);
@@ -250,5 +259,13 @@ class TripService {
       driverLng: trip.driverLng,
       eta: trip.eta,
     );
+  }
+
+  void _scheduleClearAfterCompletion() {
+    Future.delayed(const Duration(seconds: 3), () {
+      if (activeTrip.value?.status == TripStatus.completed) {
+        activeTrip.value = null;
+      }
+    });
   }
 }

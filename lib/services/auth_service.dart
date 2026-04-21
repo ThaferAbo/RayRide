@@ -93,7 +93,7 @@ class AuthService {
       );
     } catch (e) {
       throw AuthException(
-        'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.',
+        'Could not connect to the server. Please check your internet connection.',
       );
     }
 
@@ -129,7 +129,7 @@ class AuthService {
       );
     } catch (e) {
       throw AuthException(
-        'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.',
+        'Could not connect to the server. Please check your internet connection.',
       );
     }
 
@@ -141,7 +141,7 @@ class AuthService {
         return authResponse;
       } on FormatException {
         throw AuthException(
-          'Sunucudan geçersiz yanıt formatı alındı.',
+          'Received an invalid response format from the server.',
           statusCode: response.statusCode,
         );
       }
@@ -185,7 +185,7 @@ class AuthService {
       throw AuthException(
         response.body.isNotEmpty
             ? response.body
-            : 'Beklenmeyen bir hata oluştu. (Kod: ${response.statusCode})',
+            : 'An unexpected error occurred. (Code: ${response.statusCode})',
         statusCode: response.statusCode,
       );
     }
@@ -243,6 +243,6 @@ class AuthService {
 
       if (body.containsKey('title')) return body['title'];
     }
-    return 'İstek işlenirken bir hata oluştu.';
+    return 'An error occurred while processing the request.';
   }
 }
