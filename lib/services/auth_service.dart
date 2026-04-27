@@ -71,7 +71,7 @@ class AuthService {
 
   String get baseUrl {
     if (kIsWeb) {
-      return 'http://localhost:5000';
+      return 'https://localhost:9001';
     }
     if (defaultTargetPlatform == TargetPlatform.android) {
       return 'https://10.0.2.2:$_port';
@@ -190,7 +190,7 @@ class AuthService {
       );
     }
 
-    final message = _extractErrorMessage(body);
+    final message = _extractErrorMessage(body, response.statusCode);
     throw AuthException(message, statusCode: response.statusCode);
   }
 
@@ -221,7 +221,7 @@ class AuthService {
     await _write(_userKey, jsonEncode(existing));
   }
 
-  String _extractErrorMessage(dynamic body) {
+  String _extractErrorMessage(dynamic body, int statusCode) {
     if (body is Map<String, dynamic>) {
       // .NET API format: {"Message": "...", "Errors": [...]}
       final msg = body['Message'] ?? body['message'];
@@ -236,13 +236,16 @@ class AuthService {
         for (final entry in errors.entries) {
           if (entry.value is List) {
             messages.addAll((entry.value as List).map((e) => e.toString()));
+          } else if (entry.value is String) {
+            messages.add(entry.value.toString());
           }
         }
         if (messages.isNotEmpty) return messages.join('\n');
       }
 
-      if (body.containsKey('title')) return body['title'];
+      final title = body['title'] ?? body['Title'];
+      if (title is String && title.isNotEmpty) return title;
     }
-    return 'An error occurred while processing the request.';
+    return 'An error occurred while processing the request. (Code: $statusCode)\nRaw response: $body';
   }
 }

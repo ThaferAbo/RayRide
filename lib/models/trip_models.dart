@@ -10,6 +10,7 @@ class RideRequest {
   final double destLat;
   final double destLng;
   final double price;
+  final String? meetAndGreetName;
 
   RideRequest({
     required this.id,
@@ -21,6 +22,7 @@ class RideRequest {
     required this.destLat,
     required this.destLng,
     required this.price,
+    this.meetAndGreetName,
   });
 
   Map<String, dynamic> toJson() => {
@@ -33,6 +35,7 @@ class RideRequest {
         'destLat': destLat,
         'destLng': destLng,
         'price': price,
+        'meetAndGreetName': meetAndGreetName,
       };
 
   factory RideRequest.fromJson(Map<String, dynamic> json) => RideRequest(
@@ -45,6 +48,7 @@ class RideRequest {
         destLat: (json['destLat'] as num).toDouble(),
         destLng: (json['destLng'] as num).toDouble(),
         price: (json['price'] as num).toDouble(),
+        meetAndGreetName: json['meetAndGreetName'] as String?,
       );
 }
 

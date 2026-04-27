@@ -246,6 +246,31 @@ class _ActiveTripCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (trip.request.meetAndGreetName != null && trip.request.meetAndGreetName!.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.badge, color: Colors.orange, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('MEET & GREET REQUEST', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
+                          Text(trip.request.meetAndGreetName!, style: const TextStyle(color: Colors.orange, fontSize: 16, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 20),
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
@@ -363,6 +388,26 @@ class _RequestCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (request.meetAndGreetName != null && request.meetAndGreetName!.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.badge, color: Colors.orange, size: 12),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text('Sign: ${request.meetAndGreetName}', style: const TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),

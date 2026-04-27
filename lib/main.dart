@@ -2348,6 +2348,14 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
   final GeocodingService _geocodingService = GeocodingService();
   int selectedPayment = 0;
   bool _isSubmitting = false;
+  bool _wantsMeetAndGreet = false;
+  final TextEditingController _meetAndGreetController = TextEditingController();
+
+  @override
+  void dispose() {
+    _meetAndGreetController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2557,6 +2565,41 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
             ),
 
             const SizedBox(height: 24),
+            const Text('Meet & Greet Service', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(color: const Color(0xFF1E2742), borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('Add Meet & Greet', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                    subtitle: const Text('Driver will hold a sign with your name at arrivals.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    value: _wantsMeetAndGreet,
+                    onChanged: (val) => setState(() => _wantsMeetAndGreet = val),
+                    activeColor: const Color(0xFFF27A22),
+                    inactiveTrackColor: Colors.white10,
+                  ),
+                  if (_wantsMeetAndGreet)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: TextField(
+                        controller: _meetAndGreetController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Name on Sign',
+                          labelStyle: const TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: const Color(0xFF2C3E66),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          prefixIcon: const Icon(Icons.badge, color: Colors.white54),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
             const Text('Payment Method', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
 
@@ -2673,6 +2716,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         destLat: dropoffLocation.latitude,
         destLng: dropoffLocation.longitude,
         price: double.tryParse(widget.price.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+        meetAndGreetName: _wantsMeetAndGreet ? _meetAndGreetController.text.trim() : null,
       );
 
       TripService().createRequest(request);
