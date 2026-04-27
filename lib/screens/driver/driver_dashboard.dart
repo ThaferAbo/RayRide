@@ -218,14 +218,30 @@ class _ActiveTripCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _LocationLine(label: 'FROM', value: trip.request.pickupName, isFirst: true),
-                      const SizedBox(height: 8),
-                      _LocationLine(label: 'TO', value: trip.request.dropoffName, isFirst: false),
-                    ],
-                  ),
+                  child: trip.request.customStops != null && trip.request.customStops!.isNotEmpty
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: trip.request.customStops!.asMap().entries.map((entry) {
+                            bool isFirst = entry.key == 0;
+                            bool isLast = entry.key == trip.request.customStops!.length - 1;
+                            return Padding(
+                              padding: EdgeInsets.only(bottom: isLast ? 0 : 8.0),
+                              child: _LocationLine(
+                                label: isFirst ? 'START' : (isLast ? 'END' : 'STOP ${entry.key}'),
+                                value: entry.value,
+                                isFirst: isFirst,
+                              ),
+                            );
+                          }).toList(),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _LocationLine(label: 'FROM', value: trip.request.pickupName, isFirst: true),
+                            const SizedBox(height: 8),
+                            _LocationLine(label: 'TO', value: trip.request.dropoffName, isFirst: false),
+                          ],
+                        ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -246,6 +262,31 @@ class _ActiveTripCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (trip.request.requiresGuide == true)
+              Container(
+                margin: const EdgeInsets.only(top: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.withOpacity(0.5)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.person, color: Colors.green, size: 20),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('GUIDE REQUESTED', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                          Text('Professional Tour Guide', style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (trip.request.meetAndGreetName != null && trip.request.meetAndGreetName!.isNotEmpty)
               Container(
                 margin: const EdgeInsets.only(top: 16),
@@ -382,12 +423,36 @@ class _RequestCard extends StatelessWidget {
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        '${request.pickupName} → ${request.dropoffName}',
-                        style: theme.textTheme.bodySmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      if (request.customStops != null && request.customStops!.isNotEmpty)
+                        Text(
+                          'Custom Tour (${request.customStops!.length} stops)',
+                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.greenAccent, fontWeight: FontWeight.bold),
+                        )
+                      else
+                        Text(
+                          '${request.pickupName} → ${request.dropoffName}',
+                          style: theme.textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (request.requiresGuide == true)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green.withOpacity(0.5)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.person, color: Colors.green, size: 12),
+                              SizedBox(width: 4),
+                              Flexible(child: Text('Guide Requested', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                            ],
+                          ),
+                        ),
                       if (request.meetAndGreetName != null && request.meetAndGreetName!.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.only(top: 8),

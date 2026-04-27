@@ -2323,6 +2323,8 @@ class ConfirmBookingScreen extends StatefulWidget {
   final String time;
   final String pax;
   final bool useGeocoding;
+  final List<String>? customStops;
+  final bool? requiresGuide;
 
   const ConfirmBookingScreen({
     super.key,
@@ -2338,6 +2340,8 @@ class ConfirmBookingScreen extends StatefulWidget {
     required this.time,
     required this.pax,
     this.useGeocoding = true,
+    this.customStops,
+    this.requiresGuide,
   });
 
   @override
@@ -2515,38 +2519,98 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.flight_takeoff, color: Color(0xFFF27A22), size: 20),
-                            const SizedBox(width: 12),
-                            Column(
+                        if (widget.customStops != null && widget.customStops!.isNotEmpty)
+                          ...widget.customStops!.asMap().entries.map((entry) {
+                            int idx = entry.key;
+                            String stop = entry.value;
+                            bool isLast = idx == widget.customStops!.length - 1;
+                            return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Pick-up', style: TextStyle(color: Colors.white38, fontSize: 10)),
-                                Text(widget.pickup, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      idx == 0 ? Icons.flight_takeoff : (isLast ? Icons.location_on : Icons.location_history),
+                                      color: const Color(0xFFF27A22),
+                                      size: 20
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(idx == 0 ? 'Start' : (isLast ? 'End' : 'Stop $idx'), style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                                          Text(stop, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                    )
+                                  ],
+                                ),
+                                if (!isLast)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 9, top: 4, bottom: 4),
+                                    height: 15,
+                                    width: 1,
+                                    color: Colors.white24,
+                                  ),
                               ],
-                            )
-                          ],
-                        ),
-                        Container(
-                          margin: const EdgeInsets.only(left: 9, top: 4, bottom: 4),
-                          height: 15,
-                          width: 1,
-                          color: Colors.white24,
-                        ),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on, color: Color(0xFFF27A22), size: 20),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            );
+                          })
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.flight_takeoff, color: Color(0xFFF27A22), size: 20),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Pick-up', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                                        Text(widget.pickup, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  )
+                                ],
+                              ),
+                              Container(
+                                margin: const EdgeInsets.only(left: 9, top: 4, bottom: 4),
+                                height: 15,
+                                width: 1,
+                                color: Colors.white24,
+                              ),
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on, color: Color(0xFFF27A22), size: 20),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Drop-off', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                                        Text(widget.dropoff, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  )
+                                ],
+                              ),
+                            ],
+                          ),
+                        if (widget.requiresGuide == true)
+                          Container(
+                            margin: const EdgeInsets.only(top: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
+                            child: const Row(
                               children: [
-                                const Text('Drop-off', style: TextStyle(color: Colors.white38, fontSize: 10)),
-                                Text(widget.dropoff, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                Icon(Icons.person, color: Colors.green, size: 16),
+                                SizedBox(width: 8),
+                                Text('Professional Guide Requested', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
                               ],
-                            )
-                          ],
-                        ),
+                            ),
+                          ),
                         const SizedBox(height: 20),
                         Row(
                           children: [
@@ -2717,6 +2781,8 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         destLng: dropoffLocation.longitude,
         price: double.tryParse(widget.price.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
         meetAndGreetName: _wantsMeetAndGreet ? _meetAndGreetController.text.trim() : null,
+        customStops: widget.customStops,
+        requiresGuide: widget.requiresGuide,
       );
 
       TripService().createRequest(request);
@@ -3391,6 +3457,10 @@ class ToursScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            _buildCustomTourCard(context),
+            const SizedBox(height: 16),
+            const Text('Popular Tours', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
             _buildTourCard(context, 'Aspendos & Perge', 'Explore ancient ruins and amphitheaters.', '€45'),
             _buildTourCard(context, 'Pamukkale Day Trip', 'Thermal pools and Hierapolis tour.', '€65'),
             _buildTourCard(context, 'Olympos Cable Car', 'Panoramic views from Mount Tahtali.', '€55'),
@@ -3476,6 +3546,58 @@ class ToursScreen extends StatelessWidget {
                     child: const Text('Book', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                 ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomTourCard(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomTourBookingScreen()));
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFFF27A22), Color(0xFFE65C00)]),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(color: const Color(0xFFF27A22).withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 8)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+                  child: const Icon(Icons.route, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Text(
+                    'Create Custom Full-Day Tour',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Design your own itinerary with multiple stops across Antalya. Flat rate for the whole day.',
+              style: TextStyle(color: Colors.white, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Starts at €150', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                Icon(Icons.arrow_forward, color: Colors.white),
               ],
             ),
           ],
@@ -3679,6 +3801,267 @@ class _TourBookingScreenState extends State<TourBookingScreen> {
         ),
       ),
       body: content,
+    );
+  }
+}
+
+class CustomTourBookingScreen extends StatefulWidget {
+  const CustomTourBookingScreen({super.key});
+
+  @override
+  State<CustomTourBookingScreen> createState() => _CustomTourBookingScreenState();
+}
+
+class _CustomTourBookingScreenState extends State<CustomTourBookingScreen> {
+  DateTime selectedDate = DateTime.now();
+  int pax = 1;
+  bool _requiresGuide = false;
+  final double basePrice = 150.0;
+  final double guidePrice = 30.0;
+  final List<TextEditingController> _stopControllers = [
+    TextEditingController(text: 'Hotel'),
+    TextEditingController(text: 'Aspendos Ruins'),
+    TextEditingController(text: 'Düden Waterfalls'),
+  ];
+
+  @override
+  void dispose() {
+    for (var controller in _stopControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addStop() {
+    setState(() {
+      _stopControllers.add(TextEditingController());
+    });
+  }
+
+  void _removeStop(int index) {
+    if (_stopControllers.length > 2) {
+      setState(() {
+        _stopControllers[index].dispose();
+        _stopControllers.removeAt(index);
+      });
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFF27A22),
+              onPrimary: Colors.white,
+              surface: Color(0xFF2C3E66),
+              onSurface: Colors.white,
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF1E2742)),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != selectedDate) {
+      setState(() => selectedDate = picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double total = basePrice + (_requiresGuide ? guidePrice : 0);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF151B2D),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Custom Tour', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Design Your Itinerary', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text('Add the locations you wish to visit today.', style: TextStyle(color: Colors.white54, fontSize: 14)),
+                const SizedBox(height: 20),
+
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _stopControllers.length,
+                  itemBuilder: (context, index) {
+                    bool isFirst = index == 0;
+                    bool isLast = index == _stopControllers.length - 1;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isFirst ? Icons.flight_takeoff : (isLast ? Icons.location_on : Icons.location_history),
+                            color: const Color(0xFFF27A22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: _stopControllers[index],
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: isFirst ? 'Start Location' : (isLast ? 'End Location' : 'Stop $index'),
+                                labelStyle: const TextStyle(color: Colors.white54),
+                                filled: true,
+                                fillColor: const Color(0xFF1E2742),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                              ),
+                            ),
+                          ),
+                          if (_stopControllers.length > 2)
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle, color: Colors.redAccent),
+                              onPressed: () => _removeStop(index),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                TextButton.icon(
+                  onPressed: _addStop,
+                  icon: const Icon(Icons.add, color: Color(0xFFF27A22)),
+                  label: const Text('Add Stop', style: TextStyle(color: Color(0xFFF27A22))),
+                ),
+
+                const SizedBox(height: 24),
+                Container(
+                  decoration: BoxDecoration(color: const Color(0xFF1E2742), borderRadius: BorderRadius.circular(16)),
+                  child: SwitchListTile(
+                    title: const Text('Add Professional Guide', style: TextStyle(color: Colors.white)),
+                    subtitle: const Text('A licensed local guide will accompany you. (+€30)', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    value: _requiresGuide,
+                    onChanged: (val) => setState(() => _requiresGuide = val),
+                    activeColor: const Color(0xFFF27A22),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                const Text('Select Date', style: TextStyle(color: Colors.white, fontSize: 16)),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () => _selectDate(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: const Color(0xFF1E2742), borderRadius: BorderRadius.circular(12)),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, color: Color(0xFFF27A22)),
+                        const SizedBox(width: 12),
+                        Text("${selectedDate.day}/${selectedDate.month}/${selectedDate.year}", style: const TextStyle(color: Colors.white, fontSize: 16)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text('Number of Passengers', style: TextStyle(color: Colors.white, fontSize: 16)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: const Color(0xFF1E2742), borderRadius: BorderRadius.circular(12)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('$pax Passenger${pax > 1 ? 's' : ''}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => setState(() { if (pax > 1) pax--; }),
+                            icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFF27A22)),
+                          ),
+                          Text('$pax', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          IconButton(
+                            onPressed: () => setState(() => pax++),
+                            icon: const Icon(Icons.add_circle_outline, color: Color(0xFFF27A22)),
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total Price:', style: TextStyle(color: Colors.white54, fontSize: 16)),
+                    Text('€${total.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFFF27A22), fontSize: 24, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      List<String> stops = _stopControllers.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+                      if (stops.length < 2) return;
+
+                      String assignedVehicle;
+                      String assignedImage;
+
+                      if (pax <= 4) {
+                        assignedVehicle = "Mercedes Benz";
+                        assignedImage = 'assets/classs.png';
+                      } else if (pax <= 9) {
+                        assignedVehicle = "Mercedes Vito";
+                        assignedImage = 'assets/vito.png';
+                      } else {
+                        assignedVehicle = "Mercedes Sprinter";
+                        assignedImage = 'assets/sprinter7.png';
+                      }
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ConfirmBookingScreen(
+                            vehicleName: assignedVehicle,
+                            vehicleSubtitle: 'Custom Full-Day Tour',
+                            price: '€${total.toStringAsFixed(2)}',
+                            imagePath: assignedImage,
+                            pickup: stops.first,
+                            dropoff: stops.last,
+                            customStops: stops,
+                            requiresGuide: _requiresGuide,
+                            date: "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
+                            time: '09:00',
+                            pax: pax.toString(),
+                            useGeocoding: false,
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF27A22),
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Continue to Payment', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
