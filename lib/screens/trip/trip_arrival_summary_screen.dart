@@ -4,13 +4,27 @@ import '../../main.dart';
 import '../../models/trip_models.dart';
 import '../../services/trip_service.dart';
 
-class TripArrivalSummaryScreen extends StatelessWidget {
+class TripArrivalSummaryScreen extends StatefulWidget {
   const TripArrivalSummaryScreen({
     super.key,
     required this.trip,
   });
 
   final TripSession trip;
+
+  @override
+  State<TripArrivalSummaryScreen> createState() => _TripArrivalSummaryScreenState();
+}
+
+class _TripArrivalSummaryScreenState extends State<TripArrivalSummaryScreen> {
+  final TextEditingController _tipController = TextEditingController();
+  double _tipAmount = 0.0;
+
+  @override
+  void dispose() {
+    _tipController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,10 +34,11 @@ class TripArrivalSummaryScreen extends StatelessWidget {
     final content = Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Container(
-            decoration: BoxDecoration(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Container(
+              decoration: BoxDecoration(
               color: const Color(0xFF1E2742),
               borderRadius: BorderRadius.circular(32),
               border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
@@ -100,22 +115,92 @@ class TripArrivalSummaryScreen extends StatelessWidget {
                           icon: Icons.flag_rounded,
                           iconColor: Colors.redAccent,
                           label: 'Destination',
-                          value: trip.request.dropoffName,
+                          value: widget.trip.request.dropoffName,
                         ),
                         const _SummaryDivider(),
                         _SummaryRow(
                           icon: Icons.radio_button_checked,
                           iconColor: const Color(0xFFF27A22),
                           label: 'Pickup',
-                          value: trip.request.pickupName,
+                          value: widget.trip.request.pickupName,
                         ),
                         const _SummaryDivider(),
                         _SummaryRow(
                           icon: Icons.payments_rounded,
                           iconColor: Colors.greenAccent,
-                          label: 'Amount Paid',
-                          value: '${trip.request.price.toStringAsFixed(2)} EUR',
+                          label: 'Base Fare',
+                          value: '${widget.trip.request.price.toStringAsFixed(2)} EUR',
+                        ),
+                        if (_tipAmount > 0) ...[
+                          const _SummaryDivider(),
+                          _SummaryRow(
+                            icon: Icons.volunteer_activism_rounded,
+                            iconColor: Colors.pinkAccent,
+                            label: 'Tip Amount',
+                            value: '${_tipAmount.toStringAsFixed(2)} EUR',
+                          ),
+                        ],
+                        const _SummaryDivider(),
+                        _SummaryRow(
+                          icon: Icons.account_balance_wallet_rounded,
+                          iconColor: const Color(0xFFF27A22),
+                          label: 'Total Paid',
+                          value: '${(widget.trip.request.price + _tipAmount).toStringAsFixed(2)} EUR',
                           emphasize: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Tipping Section
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B233B),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: const Color(0xFFF27A22).withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.volunteer_activism, color: Colors.pinkAccent.withValues(alpha: 0.8), size: 20),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Add a Tip for Your Driver',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _tipController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                          decoration: InputDecoration(
+                            hintText: 'Enter tip amount',
+                            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 14),
+                            prefixText: '€ ',
+                            prefixStyle: const TextStyle(color: Color(0xFFF27A22), fontSize: 18, fontWeight: FontWeight.bold),
+                            filled: true,
+                            fillColor: const Color(0xFF293557),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          ),
+                          onChanged: (val) {
+                            setState(() {
+                              _tipAmount = double.tryParse(val) ?? 0.0;
+                            });
+                          },
                         ),
                       ],
                     ),
@@ -198,6 +283,7 @@ class TripArrivalSummaryScreen extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
             ),
           ),
         ),
