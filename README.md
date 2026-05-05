@@ -1,17 +1,71 @@
-# rayride
+# RayRide
 
-A new Flutter project.
+RayRide is a Flutter-based tourist transfer booking application focused on Antalya. It was developed as a university course project and demonstrates passenger booking, driver trip handling, and admin dashboard workflows for airport and hotel transfers.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- Sign in and sign up screens
+- Passenger transfer search flow
+- Pickup and dropoff selection for Antalya transfer locations
+- Ride and transfer selection flow
+- Driver dashboard with pending requests and active trip simulation
+- Admin dashboard with overview statistics and recent activity
+- Admin trip management demo
+- Driver status management demo
+- User search, filtering, suspend, and reactivate demo actions
+- Pricing controls with fare preview
+- Route and driver movement simulation
+- Dark themed responsive user interface
 
-A few resources to get you started if this is your first Flutter project:
+## Tech Stack
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Flutter
+- Dart
+- HTTP requests for backend authentication
+- Secure/shared local storage for session and user data
+- Flutter Map and LatLng-related packages for map and route features
+- Frontend demo service layer for RayRide-specific operational workflows
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Project Structure
+
+```text
+lib/
+  models/        Data models used by the Flutter app
+  screens/       Passenger, driver, admin, authentication, and trip screens
+  services/      Authentication, trip simulation, routing, and demo admin services
+  widgets/       Reusable UI components
+Backend/         Provided course backend used where applicable
+assets/          Application assets
+```
+
+## How To Run
+
+Install Flutter dependencies:
+
+```bash
+flutter pub get
+```
+
+Run the Flutter app:
+
+```bash
+flutter run
+```
+
+For web testing, a fixed local port can be used:
+
+```bash
+flutter run -d web-server --web-hostname localhost --web-port 3000
+```
+
+## Demo Notes
+
+Some operational data is simulated for presentation. This includes RayRide-specific admin users, drivers, trips, pricing, and dashboard activity.
+
+Backend authentication can be used if the provided course backend is running. Admin, driver, and trip operations are demonstrated through the Flutter app's demo service layer.
+
+## Group Information
+
+- Project name: RayRide
+- Project type: University course project
+- Group number: 09
