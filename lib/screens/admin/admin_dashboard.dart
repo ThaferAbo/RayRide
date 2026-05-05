@@ -137,19 +137,23 @@ class _AdminDashboardState extends State<AdminDashboard>
                     final isActiveTrip =
                         activeTrip != null &&
                         activeTrip.status != TripStatus.completed;
-                    return ListView(
-                      padding: const EdgeInsets.all(16),
+                    return _adminList(
                       children: [
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            final wide = constraints.maxWidth > 680;
+                            final width = constraints.maxWidth;
+                            final columns = width >= 1000
+                                ? 4
+                                : width >= 620
+                                ? 2
+                                : 1;
                             return GridView.count(
-                              crossAxisCount: wide ? 4 : 2,
+                              crossAxisCount: columns,
                               mainAxisSpacing: 12,
                               crossAxisSpacing: 12,
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              childAspectRatio: wide ? 1.45 : 1.25,
+                              childAspectRatio: columns == 1 ? 3.2 : 2.15,
                               children: [
                                 _buildSummaryCard(
                                   'Users',
@@ -269,8 +273,7 @@ class _AdminDashboardState extends State<AdminDashboard>
             return ValueListenableBuilder<List<RideHistoryItem>>(
               valueListenable: _adminService.completedTrips,
               builder: (context, completed, _) {
-                return ListView(
-                  padding: const EdgeInsets.all(16),
+                return _adminList(
                   children: [
                     _sectionTitle('Active Trip'),
                     const SizedBox(height: 12),
@@ -318,8 +321,7 @@ class _AdminDashboardState extends State<AdminDashboard>
         final filtered = _driverFilter == 'all'
             ? drivers
             : drivers.where((d) => d.status == _driverFilter).toList();
-        return ListView(
-          padding: const EdgeInsets.all(16),
+        return _adminList(
           children: [
             _filterRow(
               values: const ['all', 'online', 'offline', 'busy'],
@@ -350,8 +352,7 @@ class _AdminDashboardState extends State<AdminDashboard>
               u.email.toLowerCase().contains(q);
           return matchesRole && matchesSearch;
         }).toList();
-        return ListView(
-          padding: const EdgeInsets.all(16),
+        return _adminList(
           children: [
             TextField(
               style: const TextStyle(color: Colors.white),
@@ -381,8 +382,7 @@ class _AdminDashboardState extends State<AdminDashboard>
       builder: (context, pricing, _) {
         final standardPreview = _previewPrice(isVip: false);
         final vipPreview = _previewPrice(isVip: true);
-        return ListView(
-          padding: const EdgeInsets.all(16),
+        return _adminList(
           children: [
             _sectionTitle('Pricing Controls'),
             const SizedBox(height: 12),
@@ -551,35 +551,67 @@ class _AdminDashboardState extends State<AdminDashboard>
   Widget _pendingTripCard(RideRequest req) {
     return _panelCard(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(
-          req.passengerName,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Text(
-          '${req.pickupName}\n${req.dropoffName}\n${req.price.toStringAsFixed(2)} EUR',
-          style: const TextStyle(color: Colors.white54),
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _statusChip('pending', Colors.orange),
-            TextButton(
-              onPressed: () {
-                TripService().rejectRequest(req.id);
-                _showSnackBar('Pending request cancelled.');
-              },
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.redAccent),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 560;
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                req.passengerName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 6),
+              Text(
+                '${req.pickupName} -> ${req.dropoffName}',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${req.price.toStringAsFixed(2)} EUR',
+                style: const TextStyle(
+                  color: _orange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          );
+          final actions = Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _statusChip('pending', Colors.orange),
+              TextButton(
+                onPressed: () {
+                  TripService().rejectRequest(req.id);
+                  _showSnackBar('Pending request cancelled.');
+                },
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+              ),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [details, const SizedBox(height: 10), actions],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: details),
+              const SizedBox(width: 16),
+              actions,
+            ],
+          );
+        },
       ),
     );
   }
@@ -622,33 +654,61 @@ class _AdminDashboardState extends State<AdminDashboard>
   Widget _historyTripCard(RideHistoryItem trip) {
     return _panelCard(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(
-          trip.route,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Text(
-          '${trip.passengerName} with ${trip.driverName}\n${_formatDateTime(trip.completedAt)}',
-          style: const TextStyle(color: Colors.white54),
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _statusChip(trip.status, Colors.green),
-            const SizedBox(height: 6),
-            Text(
-              '${trip.price.toStringAsFixed(2)} EUR',
-              style: const TextStyle(
-                color: _orange,
-                fontWeight: FontWeight.bold,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 560;
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                trip.route,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 6),
+              Text(
+                '${trip.passengerName} with ${trip.driverName}',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _formatDateTime(trip.completedAt),
+                style: const TextStyle(color: Colors.white54),
+              ),
+            ],
+          );
+          final meta = Wrap(
+            spacing: 10,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _statusChip(trip.status, Colors.green),
+              Text(
+                '${trip.price.toStringAsFixed(2)} EUR',
+                style: const TextStyle(
+                  color: _orange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [details, const SizedBox(height: 10), meta],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: details),
+              const SizedBox(width: 16),
+              meta,
+            ],
+          );
+        },
       ),
     );
   }
@@ -696,15 +756,13 @@ class _AdminDashboardState extends State<AdminDashboard>
             ],
           ),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 28,
+            runSpacing: 10,
             children: [
-              Expanded(child: _smallMetric('Status', driver.status)),
-              Expanded(
-                child: _smallMetric('Rating', driver.rating.toStringAsFixed(1)),
-              ),
-              Expanded(
-                child: _smallMetric('Trips', driver.completedTrips.toString()),
-              ),
+              _metricBox('Status', driver.status),
+              _metricBox('Rating', driver.rating.toStringAsFixed(1)),
+              _metricBox('Trips', driver.completedTrips.toString()),
             ],
           ),
           const SizedBox(height: 10),
@@ -774,16 +832,13 @@ class _AdminDashboardState extends State<AdminDashboard>
             ],
           ),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 28,
+            runSpacing: 10,
             children: [
-              Expanded(child: _smallMetric('Role', user.role)),
-              Expanded(child: _smallMetric('Trips', user.tripCount.toString())),
-              Expanded(
-                child: _smallMetric(
-                  'Spent',
-                  '${user.totalSpent.toStringAsFixed(0)} EUR',
-                ),
-              ),
+              _metricBox('Role', user.role),
+              _metricBox('Trips', user.tripCount.toString()),
+              _metricBox('Spent', '${user.totalSpent.toStringAsFixed(0)} EUR'),
             ],
           ),
           const SizedBox(height: 10),
@@ -852,7 +907,7 @@ class _AdminDashboardState extends State<AdminDashboard>
 
   Widget _buildSummaryCard(String title, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(12),
@@ -862,12 +917,12 @@ class _AdminDashboardState extends State<AdminDashboard>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, color: _orange, size: 28),
+          Icon(icon, color: _orange, size: 24),
           Text(
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -887,6 +942,15 @@ class _AdminDashboardState extends State<AdminDashboard>
         color: Colors.white,
         fontSize: 18,
         fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _adminList({required List<Widget> children}) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: ListView(padding: const EdgeInsets.all(16), children: children),
       ),
     );
   }
@@ -996,6 +1060,10 @@ class _AdminDashboardState extends State<AdminDashboard>
         ),
       ],
     );
+  }
+
+  Widget _metricBox(String label, String value) {
+    return SizedBox(width: 120, child: _smallMetric(label, value));
   }
 
   Widget _buildPricingField(String label, TextEditingController controller) {
