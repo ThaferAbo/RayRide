@@ -1,33 +1,109 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../main.dart';
 import '../../services/trip_service.dart';
 import '../../models/trip_models.dart';
 
-class DriverDashboard extends StatelessWidget {
+class DriverDashboard extends StatefulWidget {
   const DriverDashboard({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final tripService = TripService();
+  State<DriverDashboard> createState() => _DriverDashboardState();
+}
 
+class _DriverDashboardState extends State<DriverDashboard> {
+  final TripService _tripService = TripService();
+  bool _isLoading = false;
+  bool _isRefreshing = false;
+  String? _error;
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDriverSession();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => _refreshTrips(showLoader: false),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _startDriverSession() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      await _tripService.updateMyDriverStatus('online');
+      await _refreshTrips(showLoader: false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _refreshTrips({bool showLoader = true}) async {
+    if (_isRefreshing) {
+      return;
+    }
+
+    _isRefreshing = true;
+    if (showLoader && mounted) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      await _tripService.loadTripsForCurrentUser();
+      if (mounted && _error != null) {
+        setState(() => _error = null);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      _isRefreshing = false;
+      if (showLoader && mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Driver Dashboard'),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.history_rounded),
-            tooltip: 'Reset Demo State',
-            onPressed: () {
-              tripService.resetService();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Demo state reset successfully')),
-              );
-            },
+            icon: _isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+            tooltip: 'Refresh requests',
+            onPressed: _isLoading ? null : _refreshTrips,
           ),
           GestureDetector(
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
             },
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.0),
@@ -41,10 +117,21 @@ class DriverDashboard extends StatelessWidget {
         ],
       ),
       body: ValueListenableBuilder<TripSession?>(
-        valueListenable: tripService.activeTrip,
+        valueListenable: _tripService.activeTrip,
         builder: (context, activeTrip, _) {
           return CustomScrollView(
             slivers: [
+              if (_error != null)
+                SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverToBoxAdapter(
+                    child: _DashboardMessage(
+                      text: _error!,
+                      icon: Icons.error_outline,
+                      color: Colors.redAccent,
+                    ),
+                  ),
+                ),
               // Active Trip Banner (Always at top if exists)
               if (activeTrip != null)
                 SliverPadding(
@@ -69,10 +156,13 @@ class DriverDashboard extends StatelessWidget {
                       ),
                       const Spacer(),
                       ValueListenableBuilder<List<RideRequest>>(
-                        valueListenable: tripService.pendingRequests,
+                        valueListenable: _tripService.pendingRequests,
                         builder: (context, requests, _) {
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.blue.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
@@ -94,7 +184,7 @@ class DriverDashboard extends StatelessWidget {
 
               // Pending Requests List (Faded if on active trip)
               ValueListenableBuilder<List<RideRequest>>(
-                valueListenable: tripService.pendingRequests,
+                valueListenable: _tripService.pendingRequests,
                 builder: (context, requests, _) {
                   if (requests.isEmpty) {
                     return SliverFillRemaining(
@@ -120,26 +210,26 @@ class DriverDashboard extends StatelessWidget {
                   }
 
                   return SliverPadding(
-                    padding: EdgeInsets.only(bottom: activeTrip != null ? 100 : 20),
+                    padding: EdgeInsets.only(
+                      bottom: activeTrip != null ? 100 : 20,
+                    ),
                     sliver: SliverOpacity(
                       opacity: activeTrip != null ? 0.6 : 1.0,
                       sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final request = requests[index];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                                vertical: 6.0,
-                              ),
-                              child: _RequestCard(
-                                request: request,
-                                isInteractionDisabled: activeTrip != null,
-                              ),
-                            );
-                          },
-                          childCount: requests.length,
-                        ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final request = requests[index];
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                              vertical: 6.0,
+                            ),
+                            child: _RequestCard(
+                              request: request,
+                              isInteractionDisabled: activeTrip != null,
+                              onAccepted: _refreshTrips,
+                            ),
+                          );
+                        }, childCount: requests.length),
                       ),
                     ),
                   );
@@ -153,6 +243,39 @@ class DriverDashboard extends StatelessWidget {
   }
 }
 
+class _DashboardMessage extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final Color color;
+
+  const _DashboardMessage({
+    required this.text,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(text, style: TextStyle(color: color)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ActiveTripCard extends StatelessWidget {
   final TripSession trip;
 
@@ -161,13 +284,18 @@ class _ActiveTripCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     // Calculate progress based on status and ETA
     double progress = 0.0;
-    if (trip.status == TripStatus.accepted) progress = 0.05;
-    else if (trip.status == TripStatus.arriving) progress = 0.1 + (0.3 * (8 - trip.eta) / 8);
-    else if (trip.status == TripStatus.started) progress = 0.4 + (0.6 * (12 - trip.eta) / 12);
-    else if (trip.status == TripStatus.completed) progress = 1.0;
+    if (trip.status == TripStatus.accepted) {
+      progress = 0.05;
+    } else if (trip.status == TripStatus.arriving) {
+      progress = 0.1 + (0.3 * (8 - trip.eta) / 8);
+    } else if (trip.status == TripStatus.started) {
+      progress = 0.4 + (0.6 * (12 - trip.eta) / 12);
+    } else if (trip.status == TripStatus.completed) {
+      progress = 1.0;
+    }
 
     return Card(
       elevation: 6,
@@ -207,7 +335,10 @@ class _ActiveTripCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       trip.request.passengerName,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -218,45 +349,86 @@ class _ActiveTripCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: trip.request.customStops != null && trip.request.customStops!.isNotEmpty
+                  child:
+                      trip.request.customStops != null &&
+                          trip.request.customStops!.isNotEmpty
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: trip.request.customStops!.asMap().entries.map((entry) {
-                            bool isFirst = entry.key == 0;
-                            bool isLast = entry.key == trip.request.customStops!.length - 1;
-                            return Padding(
-                              padding: EdgeInsets.only(bottom: isLast ? 0 : 8.0),
-                              child: _LocationLine(
-                                label: isFirst ? 'START' : (isLast ? 'END' : 'STOP ${entry.key}'),
-                                value: entry.value,
-                                isFirst: isFirst,
-                              ),
-                            );
-                          }).toList(),
+                          children: trip.request.customStops!
+                              .asMap()
+                              .entries
+                              .map((entry) {
+                                bool isFirst = entry.key == 0;
+                                bool isLast =
+                                    entry.key ==
+                                    trip.request.customStops!.length - 1;
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: isLast ? 0 : 8.0,
+                                  ),
+                                  child: _LocationLine(
+                                    label: isFirst
+                                        ? 'START'
+                                        : (isLast
+                                              ? 'END'
+                                              : 'STOP ${entry.key}'),
+                                    value: entry.value,
+                                    isFirst: isFirst,
+                                  ),
+                                );
+                              })
+                              .toList(),
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _LocationLine(label: 'FROM', value: trip.request.pickupName, isFirst: true),
+                            _LocationLine(
+                              label: 'FROM',
+                              value: trip.request.pickupName,
+                              isFirst: true,
+                            ),
                             const SizedBox(height: 8),
-                            _LocationLine(label: 'TO', value: trip.request.dropoffName, isFirst: false),
+                            _LocationLine(
+                              label: 'TO',
+                              value: trip.request.dropoffName,
+                              isFirst: false,
+                            ),
                           ],
                         ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
                     children: [
-                      const Text('ETA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'ETA',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       Text(
                         '${trip.eta}',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.blue),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.blue,
+                        ),
                       ),
-                      const Text('MIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'MIN',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -279,15 +451,30 @@ class _ActiveTripCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('GUIDE REQUESTED', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
-                          Text('Professional Tour Guide', style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
+                          Text(
+                            'GUIDE REQUESTED',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Professional Tour Guide',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-            if (trip.request.meetAndGreetName != null && trip.request.meetAndGreetName!.isNotEmpty)
+            if (trip.request.meetAndGreetName != null &&
+                trip.request.meetAndGreetName!.isNotEmpty)
               Container(
                 margin: const EdgeInsets.only(top: 16),
                 padding: const EdgeInsets.all(12),
@@ -304,8 +491,22 @@ class _ActiveTripCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('MEET & GREET REQUEST', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
-                          Text(trip.request.meetAndGreetName!, style: const TextStyle(color: Colors.orange, fontSize: 16, fontWeight: FontWeight.bold)),
+                          const Text(
+                            'MEET & GREET REQUEST',
+                            style: TextStyle(
+                              color: Colors.orange,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            trip.request.meetAndGreetName!,
+                            style: const TextStyle(
+                              color: Colors.orange,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -320,7 +521,9 @@ class _ActiveTripCard extends StatelessWidget {
                 minHeight: 8,
                 backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  trip.status == TripStatus.completed ? Colors.green : Colors.blue,
+                  trip.status == TripStatus.completed
+                      ? Colors.green
+                      : Colors.blue,
                 ),
               ),
             ),
@@ -365,7 +568,11 @@ class _LocationLine extends StatelessWidget {
   final String value;
   final bool isFirst;
 
-  const _LocationLine({required this.label, required this.value, required this.isFirst});
+  const _LocationLine({
+    required this.label,
+    required this.value,
+    required this.isFirst,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -393,8 +600,13 @@ class _LocationLine extends StatelessWidget {
 class _RequestCard extends StatelessWidget {
   final RideRequest request;
   final bool isInteractionDisabled;
+  final VoidCallback? onAccepted;
 
-  const _RequestCard({required this.request, this.isInteractionDisabled = false});
+  const _RequestCard({
+    required this.request,
+    this.isInteractionDisabled = false,
+    this.onAccepted,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -420,13 +632,20 @@ class _RequestCard extends StatelessWidget {
                     children: [
                       Text(
                         request.passengerName,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 4),
-                      if (request.customStops != null && request.customStops!.isNotEmpty)
+                      if (request.customStops != null &&
+                          request.customStops!.isNotEmpty)
                         Text(
                           'Custom Tour (${request.customStops!.length} stops)',
-                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.greenAccent, fontWeight: FontWeight.bold),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.greenAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
                         )
                       else
                         Text(
@@ -438,37 +657,70 @@ class _RequestCard extends StatelessWidget {
                       if (request.requiresGuide == true)
                         Container(
                           margin: const EdgeInsets.only(top: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.green.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.green.withOpacity(0.5)),
+                            border: Border.all(
+                              color: Colors.green.withOpacity(0.5),
+                            ),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.person, color: Colors.green, size: 12),
                               SizedBox(width: 4),
-                              Flexible(child: Text('Guide Requested', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                              Flexible(
+                                child: Text(
+                                  'Guide Requested',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      if (request.meetAndGreetName != null && request.meetAndGreetName!.isNotEmpty)
+                      if (request.meetAndGreetName != null &&
+                          request.meetAndGreetName!.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.only(top: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.orange.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                            border: Border.all(
+                              color: Colors.orange.withOpacity(0.5),
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.badge, color: Colors.orange, size: 12),
+                              const Icon(
+                                Icons.badge,
+                                color: Colors.orange,
+                                size: 12,
+                              ),
                               const SizedBox(width: 4),
                               Flexible(
-                                child: Text('Sign: ${request.meetAndGreetName}', style: const TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                                child: Text(
+                                  'Sign: ${request.meetAndGreetName}',
+                                  style: const TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
@@ -478,7 +730,10 @@ class _RequestCard extends StatelessWidget {
                 ),
                 Text(
                   '${request.price.toStringAsFixed(1)}€',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ],
             ),
@@ -489,18 +744,38 @@ class _RequestCard extends StatelessWidget {
                   Expanded(
                     child: TextButton(
                       onPressed: () => tripService.rejectRequest(request.id),
-                      child: const Text('Reject', style: TextStyle(color: Colors.red)),
+                      child: const Text(
+                        'Reject',
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => tripService.acceptRequest(request),
+                      onPressed: () async {
+                        try {
+                          await tripService.acceptTripOnBackend(request);
+                          onAccepted?.call();
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                e.toString().replaceFirst('Exception: ', ''),
+                              ),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: const Text('Accept'),
                     ),

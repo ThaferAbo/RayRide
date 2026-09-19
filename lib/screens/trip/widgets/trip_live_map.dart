@@ -213,6 +213,7 @@ class _TripLiveMapState extends State<TripLiveMap> {
           target: LatLng(trip.request.destLat, trip.request.destLng),
         );
       case TripStatus.completed:
+      case TripStatus.cancelled:
         return null;
     }
   }

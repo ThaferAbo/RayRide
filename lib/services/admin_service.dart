@@ -1,20 +1,42 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/admin_models.dart';
+import '../models/trip_models.dart';
+import 'auth_service.dart';
+import 'http_client_factory.dart'
+    if (dart.library.io) 'http_client_factory_native.dart';
 
 class AdminService {
   static final AdminService _instance = AdminService._internal();
   factory AdminService() => _instance;
   AdminService._internal() {
     _initDemoData();
+    loadVehicleOptions();
   }
+
+  static const _vehicleOptionsKey = 'admin_vehicle_options';
 
   final ValueNotifier<List<AdminUser>> users = ValueNotifier([]);
   final ValueNotifier<List<AdminDriver>> drivers = ValueNotifier([]);
   final ValueNotifier<AdminPricingConfig> pricing = ValueNotifier(
     AdminPricingConfig(),
   );
+  final ValueNotifier<List<AdminVehicleOption>> vehicleOptions = ValueNotifier(
+    [],
+  );
   final ValueNotifier<List<AdminActivity>> activities = ValueNotifier([]);
   final ValueNotifier<List<RideHistoryItem>> completedTrips = ValueNotifier([]);
+  final ValueNotifier<List<RideRequest>> trips = ValueNotifier([]);
+  final ValueNotifier<AdminDashboardSummary> summary = ValueNotifier(
+    const AdminDashboardSummary(),
+  );
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+  final ValueNotifier<String?> error = ValueNotifier(null);
+  final AuthService _authService = AuthService();
+  final http.Client _httpClient = createHttpClient();
 
   void _initDemoData() {
     users.value = [
@@ -151,6 +173,64 @@ class AdminService {
       ),
     ];
 
+    vehicleOptions.value = [
+      AdminVehicleOption(
+        id: 'economy-sedan',
+        name: 'Economy Sedan',
+        subtitle: 'Toyota Corolla or similar',
+        price: 25,
+        time: '~25 min',
+        pax: 3,
+        bags: 2,
+        isVip: false,
+        imagePath: 'assets/toytaCorolla0.png',
+      ),
+      AdminVehicleOption(
+        id: 'comfort-plus',
+        name: 'Comfort Plus',
+        subtitle: 'Mercedes E-Class',
+        price: 38,
+        time: '~25 min',
+        pax: 3,
+        bags: 3,
+        isVip: false,
+        imagePath: 'assets/classs.png',
+      ),
+      AdminVehicleOption(
+        id: 'vip-vito',
+        name: 'VIP Vito',
+        subtitle: 'Mercedes-Benz Vito',
+        price: 55,
+        time: '~25 min',
+        pax: 6,
+        bags: 6,
+        isVip: true,
+        imagePath: 'assets/vito.png',
+      ),
+      AdminVehicleOption(
+        id: 'sprinter',
+        name: 'Mercedes Sprinter',
+        subtitle: 'VIP Group Shuttle',
+        price: 75,
+        time: '~30 min',
+        pax: 12,
+        bags: 12,
+        isVip: true,
+        imagePath: 'assets/sprinter7.png',
+      ),
+      AdminVehicleOption(
+        id: 'escalade',
+        name: 'Cadillac Escalade',
+        subtitle: 'Premium Luxury SUV',
+        price: 90,
+        time: '~25 min',
+        pax: 4,
+        bags: 4,
+        isVip: true,
+        imagePath: 'assets/cadil5.png',
+      ),
+    ];
+
     activities.value = [
       AdminActivity(
         id: 'a1',
@@ -183,6 +263,136 @@ class AdminService {
         timestamp: DateTime.now().subtract(const Duration(hours: 2)),
       ),
     ];
+  }
+
+  Future<void> loadBackendData() async {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      final responses = await Future.wait([
+        _httpClient.get(
+          Uri.parse('${_authService.baseUrl}/api/v1/Admin/Users'),
+          headers: await _headers(),
+        ),
+        _httpClient.get(
+          Uri.parse('${_authService.baseUrl}/api/v1/Drivers'),
+          headers: await _headers(),
+        ),
+        _httpClient.get(
+          Uri.parse('${_authService.baseUrl}/api/v1/Trips'),
+          headers: await _headers(),
+        ),
+        _httpClient.get(
+          Uri.parse('${_authService.baseUrl}/api/v1/Admin/DashboardSummary'),
+          headers: await _headers(),
+        ),
+      ]);
+
+      for (final response in responses) {
+        _throwIfFailed(response);
+      }
+
+      final usersJson = jsonDecode(responses[0].body) as List<dynamic>;
+      users.value = usersJson
+          .whereType<Map<String, dynamic>>()
+          .map(AdminUser.fromJson)
+          .toList();
+
+      final driversJson = jsonDecode(responses[1].body) as List<dynamic>;
+      drivers.value = driversJson
+          .whereType<Map<String, dynamic>>()
+          .map(AdminDriver.fromJson)
+          .toList();
+
+      final tripsJson = jsonDecode(responses[2].body) as List<dynamic>;
+      final loadedTrips = tripsJson
+          .whereType<Map<String, dynamic>>()
+          .map(RideRequest.fromJson)
+          .toList();
+      trips.value = loadedTrips;
+      completedTrips.value = loadedTrips
+          .where((trip) => trip.status == 'completed')
+          .map(
+            (trip) => RideHistoryItem(
+              id: trip.id,
+              passengerName: trip.passengerName,
+              driverName: trip.driverName ?? 'Unassigned',
+              route: '${trip.pickupName} -> ${trip.dropoffName}',
+              price: trip.price,
+              status: trip.status ?? 'completed',
+              completedAt: trip.completedAt ?? DateTime.now(),
+            ),
+          )
+          .toList();
+
+      summary.value = AdminDashboardSummary.fromJson(
+        jsonDecode(responses[3].body) as Map<String, dynamic>,
+      );
+
+      activities.value = [
+        AdminActivity(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          title: 'Backend data loaded',
+          description: 'Dashboard refreshed from RayRide API.',
+          type: 'system',
+        ),
+        ...activities.value,
+      ].take(8).toList();
+    } catch (e) {
+      error.value = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> updateDriverStatusBackend(String id, String status) async {
+    final response = await _httpClient.put(
+      Uri.parse('${_authService.baseUrl}/api/v1/Drivers/$id/status'),
+      headers: await _headers(),
+      body: jsonEncode({'status': status}),
+    );
+    _throwIfFailed(response);
+    final updated = AdminDriver.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+    drivers.value = drivers.value
+        .map((driver) => driver.id == updated.id ? updated : driver)
+        .toList();
+    await loadBackendData();
+  }
+
+  Future<void> updateDriverApprovalBackend(String id, bool isApproved) async {
+    final response = await _httpClient.put(
+      Uri.parse('${_authService.baseUrl}/api/v1/Drivers/$id/approval'),
+      headers: await _headers(),
+      body: jsonEncode({'isApproved': isApproved}),
+    );
+    _throwIfFailed(response);
+    final updated = AdminDriver.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+    drivers.value = drivers.value
+        .map((driver) => driver.id == updated.id ? updated : driver)
+        .toList();
+    await loadBackendData();
+  }
+
+  Future<void> cancelTripBackend(String id) async {
+    final response = await _httpClient.put(
+      Uri.parse('${_authService.baseUrl}/api/v1/Trips/$id/cancel'),
+      headers: await _headers(),
+    );
+    _throwIfFailed(response);
+    await loadBackendData();
+  }
+
+  Future<void> completeTripBackend(String id) async {
+    final response = await _httpClient.put(
+      Uri.parse('${_authService.baseUrl}/api/v1/Trips/$id/complete'),
+      headers: await _headers(),
+    );
+    _throwIfFailed(response);
+    await loadBackendData();
   }
 
   void activateDriver(String id) {
@@ -264,16 +474,175 @@ class AdminService {
     return double.parse((fare + serviceFee).toStringAsFixed(2));
   }
 
-  double get todayRevenue =>
-      completedTrips.value.fold(0, (sum, trip) => sum + trip.price);
+  double get todayRevenue => summary.value.todayRevenue > 0
+      ? summary.value.todayRevenue
+      : completedTrips.value.fold(0, (sum, trip) => sum + trip.price);
 
   double get averageDriverRating {
+    if (summary.value.averageDriverRating > 0) {
+      return summary.value.averageDriverRating;
+    }
     if (drivers.value.isEmpty) return 0;
     final total = drivers.value.fold<double>(
       0,
       (sum, driver) => sum + driver.rating,
     );
     return double.parse((total / drivers.value.length).toStringAsFixed(1));
+  }
+
+  Future<void> addVehicleOption(AdminVehicleOption option) async {
+    final response = await _httpClient.post(
+      Uri.parse('${_authService.baseUrl}/api/v1/Admin/VehicleOptions'),
+      headers: await _headers(),
+      body: jsonEncode(_vehicleOptionPayload(option)),
+    );
+    _throwIfFailed(response);
+    await loadVehicleOptions();
+    _addActivity(
+      'Car added',
+      '${option.name} is now available to passengers.',
+      'pricing',
+    );
+  }
+
+  Future<void> updateVehicleOption(AdminVehicleOption option) async {
+    final response = await _httpClient.put(
+      Uri.parse(
+        '${_authService.baseUrl}/api/v1/Admin/VehicleOptions/${option.id}',
+      ),
+      headers: await _headers(),
+      body: jsonEncode(_vehicleOptionPayload(option)),
+    );
+    _throwIfFailed(response);
+    await loadVehicleOptions();
+    _addActivity(
+      'Car updated',
+      '${option.name} now costs ${option.displayPrice}.',
+      'pricing',
+    );
+  }
+
+  Future<void> deleteVehicleOption(String id) async {
+    AdminVehicleOption? removed;
+    for (final vehicle in vehicleOptions.value) {
+      if (vehicle.id == id) {
+        removed = vehicle;
+        break;
+      }
+    }
+    final response = await _httpClient.delete(
+      Uri.parse('${_authService.baseUrl}/api/v1/Admin/VehicleOptions/$id'),
+      headers: await _headers(),
+    );
+    _throwIfFailed(response);
+    await loadVehicleOptions();
+    _addActivity(
+      'Car removed',
+      '${removed?.name ?? 'Vehicle'} is no longer shown to passengers.',
+      'pricing',
+    );
+  }
+
+  Future<void> loadVehicleOptions() async {
+    try {
+      final response = await _httpClient.get(
+        Uri.parse('${_authService.baseUrl}/api/v1/Admin/VehicleOptions'),
+        headers: await _headers(),
+      );
+      _throwIfFailed(response);
+      final decoded = jsonDecode(response.body);
+      if (decoded is List) {
+        final loaded = decoded
+            .whereType<Map<String, dynamic>>()
+            .map(AdminVehicleOption.fromJson)
+            .where((vehicle) => vehicle.name.trim().isNotEmpty)
+            .toList();
+        if (_vehicleListsDiffer(vehicleOptions.value, loaded)) {
+          vehicleOptions.value = loaded;
+        }
+        await _saveVehicleOptions();
+        return;
+      }
+    } catch (_) {
+      // Fall back to the last browser cache below if the shared API is down.
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_vehicleOptionsKey);
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        final loaded = decoded
+            .whereType<Map<String, dynamic>>()
+            .map(AdminVehicleOption.fromJson)
+            .where((vehicle) => vehicle.name.trim().isNotEmpty)
+            .toList();
+        if (_vehicleListsDiffer(vehicleOptions.value, loaded)) {
+          vehicleOptions.value = loaded;
+        }
+      }
+    } catch (_) {
+      // Keep default demo cars if stored data is malformed.
+    }
+  }
+
+  bool _vehicleListsDiffer(
+    List<AdminVehicleOption> current,
+    List<AdminVehicleOption> next,
+  ) {
+    if (current.length != next.length) {
+      return true;
+    }
+    for (var i = 0; i < current.length; i++) {
+      if (jsonEncode(current[i].toJson()) != jsonEncode(next[i].toJson())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _saveVehicleOptions() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _vehicleOptionsKey,
+      jsonEncode(
+        vehicleOptions.value.map((vehicle) => vehicle.toJson()).toList(),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _vehicleOptionPayload(AdminVehicleOption option) => {
+    'name': option.name,
+    'subtitle': option.subtitle,
+    'price': option.price,
+    'time': option.time,
+    'pax': option.pax,
+    'bags': option.bags,
+    'isVip': option.isVip,
+    'imagePath': option.imagePath,
+  };
+
+  Future<Map<String, String>> _headers() async {
+    final token = await _authService.getToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  void _throwIfFailed(http.Response response) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return;
+    }
+    throw Exception(
+      response.body.isNotEmpty
+          ? response.body
+          : 'Request failed with status ${response.statusCode}.',
+    );
   }
 
   void addMockRequestActivity(double price) {

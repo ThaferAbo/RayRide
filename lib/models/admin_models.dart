@@ -25,6 +25,27 @@ class AdminUser {
     this.isActive = true,
   }) : createdAt = createdAt ?? DateTime.now();
 
+  factory AdminUser.fromJson(Map<String, dynamic> json) {
+    final roles = (json['roles'] as List<dynamic>?)
+            ?.map((role) => role.toString())
+            .toList() ??
+        const <String>[];
+    final role = roles.contains('Driver')
+        ? 'driver'
+        : roles.contains('Admin') || roles.contains('SuperAdmin')
+            ? 'admin'
+            : 'passenger';
+    final fullName = (json['fullName'] ?? '').toString().trim();
+    return AdminUser(
+      id: (json['id'] ?? '').toString(),
+      name: fullName.isNotEmpty ? fullName : (json['userName'] ?? json['email'] ?? 'User').toString(),
+      email: (json['email'] ?? '').toString(),
+      role: role,
+      phone: (json['phoneNumber'] ?? '').toString(),
+      isActive: json['isActive'] as bool? ?? true,
+    );
+  }
+
   AdminUser copyWith({
     String? id,
     String? name,
@@ -79,6 +100,21 @@ class AdminDriver {
     this.currentArea = '',
   });
 
+  factory AdminDriver.fromJson(Map<String, dynamic> json) {
+    return AdminDriver(
+      id: (json['id'] ?? '').toString(),
+      name: (json['fullName'] ?? 'Driver').toString(),
+      vehicle: (json['vehicleModel'] ?? '').toString(),
+      plate: (json['vehiclePlate'] ?? '').toString(),
+      status: (json['status'] ?? 'offline').toString(),
+      isApproved: json['isApproved'] as bool? ?? false,
+      rating: (json['rating'] as num?)?.toDouble() ?? 0,
+      completedTrips: (json['completedTrips'] as num?)?.toInt() ?? 0,
+      phone: (json['phoneNumber'] ?? '').toString(),
+      currentArea: 'Antalya',
+    );
+  }
+
   AdminDriver copyWith({
     String? id,
     String? name,
@@ -122,6 +158,82 @@ class AdminPricingConfig {
   }) : lastUpdated = lastUpdated ?? DateTime.now();
 }
 
+class AdminVehicleOption {
+  final String id;
+  final String name;
+  final String subtitle;
+  final double price;
+  final String time;
+  final int pax;
+  final int bags;
+  final bool isVip;
+  final String imagePath;
+
+  AdminVehicleOption({
+    required this.id,
+    required this.name,
+    required this.subtitle,
+    required this.price,
+    required this.time,
+    required this.pax,
+    required this.bags,
+    required this.isVip,
+    required this.imagePath,
+  });
+
+  String get displayPrice => '€${price.toStringAsFixed(2)}';
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'subtitle': subtitle,
+        'price': price,
+        'time': time,
+        'pax': pax,
+        'bags': bags,
+        'isVip': isVip,
+        'imagePath': imagePath,
+      };
+
+  factory AdminVehicleOption.fromJson(Map<String, dynamic> json) {
+    return AdminVehicleOption(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      subtitle: (json['subtitle'] ?? '').toString(),
+      price: (json['price'] as num?)?.toDouble() ?? 0,
+      time: (json['time'] ?? '~25 min').toString(),
+      pax: (json['pax'] as num?)?.toInt() ?? 1,
+      bags: (json['bags'] as num?)?.toInt() ?? 0,
+      isVip: json['isVip'] as bool? ?? false,
+      imagePath: (json['imagePath'] ?? 'assets/classs.png').toString(),
+    );
+  }
+
+  AdminVehicleOption copyWith({
+    String? id,
+    String? name,
+    String? subtitle,
+    double? price,
+    String? time,
+    int? pax,
+    int? bags,
+    bool? isVip,
+    String? imagePath,
+  }) {
+    return AdminVehicleOption(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      subtitle: subtitle ?? this.subtitle,
+      price: price ?? this.price,
+      time: time ?? this.time,
+      pax: pax ?? this.pax,
+      bags: bags ?? this.bags,
+      isVip: isVip ?? this.isVip,
+      imagePath: imagePath ?? this.imagePath,
+    );
+  }
+}
+
 class AdminActivity {
   final String id;
   final String title;
@@ -136,4 +248,37 @@ class AdminActivity {
     required this.type,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
+}
+
+class AdminDashboardSummary {
+  final int totalUsers;
+  final int totalDrivers;
+  final int pendingTrips;
+  final int activeTrips;
+  final int completedTrips;
+  final double todayRevenue;
+  final double averageDriverRating;
+
+  const AdminDashboardSummary({
+    this.totalUsers = 0,
+    this.totalDrivers = 0,
+    this.pendingTrips = 0,
+    this.activeTrips = 0,
+    this.completedTrips = 0,
+    this.todayRevenue = 0,
+    this.averageDriverRating = 0,
+  });
+
+  factory AdminDashboardSummary.fromJson(Map<String, dynamic> json) {
+    return AdminDashboardSummary(
+      totalUsers: (json['totalUsers'] as num?)?.toInt() ?? 0,
+      totalDrivers: (json['totalDrivers'] as num?)?.toInt() ?? 0,
+      pendingTrips: (json['pendingTrips'] as num?)?.toInt() ?? 0,
+      activeTrips: (json['activeTrips'] as num?)?.toInt() ?? 0,
+      completedTrips: (json['completedTrips'] as num?)?.toInt() ?? 0,
+      todayRevenue: (json['todayRevenue'] as num?)?.toDouble() ?? 0,
+      averageDriverRating:
+          (json['averageDriverRating'] as num?)?.toDouble() ?? 0,
+    );
+  }
 }

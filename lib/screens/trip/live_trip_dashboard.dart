@@ -30,7 +30,8 @@ class _LiveTripDashboardState extends State<LiveTripDashboard> {
             return const Center(child: Text('No active trip session found'));
           }
 
-          if (trip.status == TripStatus.completed && !_completionNavigationTriggered) {
+          if (trip.status == TripStatus.completed &&
+              !_completionNavigationTriggered) {
             _completionNavigationTriggered = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
@@ -44,9 +45,7 @@ class _LiveTripDashboardState extends State<LiveTripDashboard> {
 
           return Stack(
             children: [
-              Positioned.fill(
-                child: TripLiveMap(trip: trip),
-              ),
+              Positioned.fill(child: TripLiveMap(trip: trip)),
               Positioned(
                 top: 0,
                 left: 0,
@@ -99,16 +98,28 @@ class _LiveTripDashboardState extends State<LiveTripDashboard> {
             decoration: BoxDecoration(
               color: Colors.blue,
               borderRadius: BorderRadius.circular(30),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4)],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 4,
+                ),
+              ],
             ),
             child: Text(
               trip.status.name.toUpperCase(),
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
             ),
           ),
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+              color: Colors.white24,
+              shape: BoxShape.circle,
+            ),
             child: const Icon(Icons.security, color: Colors.white, size: 20),
           ),
         ],
@@ -116,7 +127,15 @@ class _LiveTripDashboardState extends State<LiveTripDashboard> {
     );
   }
 
-  Widget _buildBottomInfoCard(TripSession trip, ThemeData theme, int displayedEta) {
+  Widget _buildBottomInfoCard(
+    TripSession trip,
+    ThemeData theme,
+    int displayedEta,
+  ) {
+    final driverName = trip.request.driverName?.trim().isNotEmpty == true
+        ? trip.request.driverName!.trim()
+        : 'Assigned driver';
+
     return Card(
       elevation: 10,
       shadowColor: Colors.black.withValues(alpha: 0.2),
@@ -130,20 +149,38 @@ class _LiveTripDashboardState extends State<LiveTripDashboard> {
               children: [
                 CircleAvatar(
                   radius: 26,
-                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  child: Icon(Icons.person_rounded, size: 30, color: theme.colorScheme.primary),
+                  backgroundColor: theme.colorScheme.primary.withValues(
+                    alpha: 0.1,
+                  ),
+                  child: Icon(
+                    Icons.person_rounded,
+                    size: 30,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('George R.', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(
+                        driverName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       Row(
                         children: [
                           const Icon(Icons.star, size: 14, color: Colors.amber),
                           const SizedBox(width: 4),
-                          Text('4.9 (1.2k)', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                          Text(
+                            '4.9 (1.2k)',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -151,11 +188,28 @@ class _LiveTripDashboardState extends State<LiveTripDashboard> {
                 ),
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(16)),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Column(
                     children: [
-                      Text('$displayedEta', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.blue)),
-                      const Text('MINS', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.blue)),
+                      Text(
+                        '$displayedEta',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.blue,
+                        ),
+                      ),
+                      const Text(
+                        'MINS',
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -167,7 +221,11 @@ class _LiveTripDashboardState extends State<LiveTripDashboard> {
               children: [
                 _ActionButton(icon: Icons.chat_outlined, label: 'Chat'),
                 _ActionButton(icon: Icons.call_outlined, label: 'Call'),
-                _ActionButton(icon: Icons.cancel_outlined, label: 'Cancel', color: Colors.red.shade400),
+                _ActionButton(
+                  icon: Icons.cancel_outlined,
+                  label: 'Cancel',
+                  color: Colors.red.shade400,
+                ),
               ],
             ),
           ],
@@ -189,7 +247,14 @@ class _ActionButton extends StatelessWidget {
       children: [
         Icon(icon, color: color ?? Colors.blue, size: 22),
         const SizedBox(height: 6),
-        Text(label, style: TextStyle(fontSize: 11, color: color ?? Colors.blue, fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: color ?? Colors.blue,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }

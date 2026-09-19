@@ -9,7 +9,9 @@ import 'package:shimmer/shimmer.dart' as shimmer;
 
 import 'models/login_request.dart';
 import 'models/register_request.dart';
+import 'models/admin_models.dart';
 import 'services/auth_service.dart';
+import 'services/admin_service.dart';
 import 'services/geocoding_service.dart';
 import 'models/trip_models.dart';
 import 'services/trip_service.dart';
@@ -69,8 +71,60 @@ class RayRideApp extends StatelessWidget {
               surface: Color(0xFF1E2742), // Lighter blue for cards
             ),
           ),
-          home: const SignInScreen(),
+          home: const AuthGate(),
         );
+      },
+    );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  final AuthService _authService = AuthService();
+  late final Future<bool> _restoreSessionFuture = _restoreSession();
+
+  Future<bool> _restoreSession() async {
+    final loggedIn = await _authService.isLoggedIn();
+    if (!loggedIn) {
+      return false;
+    }
+
+    final userData = await _authService.getUserData();
+    final rawRoles = userData?['roles'];
+    final roles = rawRoles is List
+        ? rawRoles.map((role) => role.toString()).toList()
+        : const <String>[];
+    TripService().currentRole.value = AuthService.roleFromNames(roles);
+
+    await AdminService().loadVehicleOptions();
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _restoreSessionFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF151B2D),
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFFF27A22)),
+            ),
+          );
+        }
+
+        if (snapshot.data == true) {
+          return const MainScreen();
+        }
+
+        return const SignInScreen();
       },
     );
   }
@@ -593,6 +647,7 @@ class _MainScreenState extends State<MainScreen>
   TimeOfDay selectedTime = const TimeOfDay(hour: 14, minute: 30);
   final _authService = AuthService();
   String _greeting = 'Welcome!';
+  bool _isRefreshingPassenger = false;
 
   late final AnimationController _swapCtrl;
   late final Animation<double> _swapAnim;
@@ -625,6 +680,51 @@ class _MainScreenState extends State<MainScreen>
     if (name.isNotEmpty) {
       setState(() => _greeting = 'Welcome, $name!');
     }
+  }
+
+  Future<void> _refreshPassengerData() async {
+    setState(() => _isRefreshingPassenger = true);
+    try {
+      await AdminService().loadVehicleOptions();
+      await TripService().loadTripsForCurrentUser();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Passenger data refreshed.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isRefreshingPassenger = false);
+      }
+    }
+  }
+
+  Widget _passengerRefreshButton({Color color = Colors.white}) {
+    return IconButton(
+      tooltip: 'Refresh',
+      onPressed: _isRefreshingPassenger ? null : _refreshPassengerData,
+      icon: _isRefreshingPassenger
+          ? SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: color,
+              ),
+            )
+          : Icon(Icons.refresh, color: color),
+    );
   }
 
   final List<String> locations = [
@@ -893,12 +993,25 @@ class _MainScreenState extends State<MainScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 16),
-                            Text(_greeting, style: const TextStyle(color: Color(0xFFFFB74D), fontSize: 14)),
-                            const SizedBox(height: 5),
-                            const Text('Where would you like to go?',
-                                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2)),
-                            const SizedBox(height: 5),
-                            const Text('Premium transfers across the Turkish Riviera', style: TextStyle(color: Colors.white54)),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(_greeting, style: const TextStyle(color: Color(0xFFFFB74D), fontSize: 14)),
+                                      const SizedBox(height: 5),
+                                      const Text('Where would you like to go?',
+                                          style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2)),
+                                      const SizedBox(height: 5),
+                                      const Text('Premium transfers across the Turkish Riviera', style: TextStyle(color: Colors.white54)),
+                                    ],
+                                  ),
+                                ),
+                                _passengerRefreshButton(),
+                              ],
+                            ),
                             const SizedBox(height: 30),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -968,6 +1081,8 @@ class _MainScreenState extends State<MainScreen>
                           ),
                           Row(
                             children: [
+                              _passengerRefreshButton(),
+                              const SizedBox(width: 8),
                               GestureDetector(
                                 onTap: () {
                                   Navigator.push(
@@ -1509,47 +1624,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 30),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E2742),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('App Role (Demo)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                        const SizedBox(height: 12),
-                        ValueListenableBuilder<AppRole>(
-                          valueListenable: TripService().currentRole,
-                          builder: (context, currentRole, _) {
-                            return Wrap(
-                              spacing: 8,
-                              children: AppRole.values.map((role) {
-                                final isSelected = role == currentRole;
-                                return ChoiceChip(
-                                  label: Text(role.name.toUpperCase(), style: TextStyle(color: isSelected ? Colors.white : Colors.white54)),
-                                  selected: isSelected,
-                                  selectedColor: const Color(0xFFF27A22),
-                                  backgroundColor: const Color(0xFF2C3E66),
-                                  showCheckmark: false,
-                                  onSelected: (bool selected) {
-                                    if (selected) {
-                                      TripService().currentRole.value = role;
-                                      Navigator.of(context).popUntil((route) => route.isFirst);
-                                    }
-                                  },
-                                );
-                              }).toList(),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: 30),
                   const Align(alignment: Alignment.centerLeft, child: Text('Recent Trips', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white))),
                   const SizedBox(height: 16),
@@ -1798,72 +1872,27 @@ class ChooseRideScreen extends StatelessWidget {
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: wide ? 900 : double.infinity),
-                child: _ShimmerListWrapper(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      _buildVehicleCard(
-                        context,
-                        name: 'Economy Sedan',
-                        subtitle: 'Toyota Corolla or similar',
-                        price: '€25.00',
-                        time: '~25 min',
-                        pax: 3,
-                        bags: 2,
-                        isVip: false,
-                        imagePath: 'assets/toytaCorolla0.png',
-                      ),
-                      _buildVehicleCard(
-                        context,
-                        name: 'Comfort Plus',
-                        subtitle: 'Mercedes E-Class',
-                        price: '€38.00',
-                        time: '~25 min',
-                        pax: 3,
-                        bags: 3,
-                        isVip: false,
-                        imagePath: 'assets/classs.png',
-                      ),
-                      _buildVehicleCard(
-                        context,
-                        name: 'VIP Vito',
-                        subtitle: 'Mercedes-Benz Vito',
-                        price: '€55.00',
-                        time: '~25 min',
-                        pax: 6,
-                        bags: 6,
-                        isVip: true,
-                        imagePath: 'assets/vito.png',
-                      ),
-                      _buildVehicleCard(
-                        context,
-                        name: 'Mercedes Sprinter',
-                        subtitle: 'VIP Group Shuttle',
-                        price: '€75.00',
-                        time: '~30 min',
-                        pax: 12,
-                        bags: 12,
-                        isVip: true,
-                        imagePath: 'assets/sprinter7.png',
-                      ),
-                      _buildVehicleCard(
-                        context,
-                        name: 'Cadillac Escalade',
-                        subtitle: 'Premium Luxury SUV',
-                        price: '€90.00',
-                        time: '~25 min',
-                        pax: 4,
-                        bags: 4,
-                        isVip: true,
-                        imagePath: 'assets/cadil5.png',
-                      ),
-                    ],
-                  ),
-                ),
+                child: _buildVehicleList(context),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildVehicleList(BuildContext context) {
+    return _SyncedVehicleOptionsList(
+      itemBuilder: (vehicle) => _buildVehicleCard(
+        context,
+        name: vehicle.name,
+        subtitle: vehicle.subtitle,
+        price: vehicle.displayPrice,
+        time: vehicle.time,
+        pax: vehicle.pax,
+        bags: vehicle.bags,
+        isVip: vehicle.isVip,
+        imagePath: vehicle.imagePath,
       ),
     );
   }
@@ -1993,6 +2022,63 @@ class ChooseRideScreen extends StatelessWidget {
           const SizedBox(width: 4),
           Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)),
         ],
+      ),
+    );
+  }
+}
+
+class _SyncedVehicleOptionsList extends StatefulWidget {
+  final Widget Function(AdminVehicleOption vehicle) itemBuilder;
+
+  const _SyncedVehicleOptionsList({required this.itemBuilder});
+
+  @override
+  State<_SyncedVehicleOptionsList> createState() =>
+      _SyncedVehicleOptionsListState();
+}
+
+class _SyncedVehicleOptionsListState extends State<_SyncedVehicleOptionsList> {
+  Timer? _syncTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncVehicles();
+    _syncTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _syncVehicles(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _syncVehicles() async {
+    await AdminService().loadVehicleOptions();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ShimmerListWrapper(
+      child: ValueListenableBuilder<List<AdminVehicleOption>>(
+        valueListenable: AdminService().vehicleOptions,
+        builder: (context, vehicles, _) {
+          if (vehicles.isEmpty) {
+            return const Center(
+              child: Text(
+                'No cars are available right now.',
+                style: TextStyle(color: Colors.white54),
+              ),
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: vehicles.map(widget.itemBuilder).toList(),
+          );
+        },
       ),
     );
   }
@@ -2783,15 +2869,16 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         meetAndGreetName: _wantsMeetAndGreet ? _meetAndGreetController.text.trim() : null,
         customStops: widget.customStops,
         requiresGuide: widget.requiresGuide,
+        vehicleType: widget.vehicleName,
       );
 
-      TripService().createRequest(request);
+      final createdRequest = await TripService().createTripOnBackend(request);
 
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => WaitingScreen(request: request),
+          builder: (context) => WaitingScreen(request: createdRequest),
         ),
       );
     } on GeocodingException catch (e) {
@@ -2803,11 +2890,15 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to resolve trip locations right now. Please try again.'),
+        SnackBar(
+          content: Text(
+            e.toString().contains('Exception:')
+                ? e.toString().replaceFirst('Exception: ', '')
+                : 'Unable to create trip right now. Please try again.',
+          ),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
         ),

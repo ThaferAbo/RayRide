@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../main.dart';
 import '../../services/trip_service.dart';
@@ -15,11 +17,61 @@ class WaitingScreen extends StatefulWidget {
 
 class _WaitingScreenState extends State<WaitingScreen> {
   bool _navigationTriggered = false;
+  Timer? _pollTimer;
+  String? _pollError;
+
+  @override
+  void initState() {
+    super.initState();
+    _pollTripStatus();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => _pollTripStatus(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _pollTripStatus() async {
+    if (_navigationTriggered) {
+      return;
+    }
+
+    try {
+      final trip = await TripService().refreshTripById(widget.request.id);
+      if (!mounted || trip == null) {
+        return;
+      }
+
+      final status = tripStatusFromString(trip.status);
+      if (status == TripStatus.cancelled) {
+        _pollTimer?.cancel();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This ride was cancelled.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.pop(context);
+        return;
+      }
+
+      if (_pollError != null) {
+        setState(() => _pollError = null);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _pollError = e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final tripService = TripService();
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -54,6 +106,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
               !_navigationTriggered) {
             
             _navigationTriggered = true;
+            _pollTimer?.cancel();
             WidgetsBinding.instance.addPostFrameCallback((_) {
               Navigator.pushReplacement(
                 context,
@@ -81,6 +134,14 @@ class _WaitingScreenState extends State<WaitingScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey),
                   ),
+                  if (_pollError != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _pollError!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  ],
                   const Spacer(),
                   _BookingSummary(request: widget.request),
                   const SizedBox(height: 24),
@@ -88,9 +149,11 @@ class _WaitingScreenState extends State<WaitingScreen> {
                     width: double.infinity,
                     child: TextButton(
                       onPressed: () {
-                        // Remove request from pending list and leave
-                        tripService.rejectRequest(widget.request.id);
-                        Navigator.pop(context);
+                        tripService.cancelTripOnBackend(widget.request.id).whenComplete(() {
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                          }
+                        });
                       },
                       child: const Text('Cancel Ride', style: TextStyle(color: Colors.red)),
                     ),

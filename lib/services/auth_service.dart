@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/auth_response.dart';
 import '../models/login_request.dart';
 import '../models/register_request.dart';
+import '../models/app_role.dart';
+import 'trip_service.dart';
 import 'http_client_factory.dart'
     if (dart.library.io) 'http_client_factory_native.dart';
 
@@ -138,6 +140,7 @@ class AuthService {
         final body = jsonDecode(response.body);
         final authResponse = AuthResponse.fromJson(body);
         await _saveTokens(authResponse);
+        TripService().currentRole.value = roleFromNames(authResponse.roles);
         return authResponse;
       } on FormatException {
         throw AuthException(
@@ -173,6 +176,19 @@ class AuthService {
 
   Future<void> logout() async {
     await _deleteAll();
+    TripService().resetService();
+    TripService().currentRole.value = AppRole.passenger;
+  }
+
+  static AppRole roleFromNames(List<String> roles) {
+    final normalized = roles.map((role) => role.toLowerCase()).toSet();
+    if (normalized.contains('superadmin') || normalized.contains('admin')) {
+      return AppRole.admin;
+    }
+    if (normalized.contains('driver')) {
+      return AppRole.driver;
+    }
+    return AppRole.passenger;
   }
 
   // ─── Private helpers ───────────────────────────────────
