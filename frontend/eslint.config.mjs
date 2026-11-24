@@ -5,7 +5,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import typescript from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores([".next/**", "out/**", "next-env.d.ts", "lib/api.types.ts"]),
+  globalIgnores([".next/**", "out/**", "next-env.d.ts", "lib/api.types.ts", "test-results/**", "playwright-report/**"]),
   javascript.configs.recommended,
   ...typescript.configs.recommended,
   {

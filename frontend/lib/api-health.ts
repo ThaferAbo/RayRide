@@ -1,9 +1,7 @@
 import type { paths } from "./api.types";
+import { readLocalApiOrigin } from "./api-origin.ts";
 
 type HealthResponse = paths["/health"]["get"]["responses"][200]["content"]["application/json"];
-
-const defaultApiUrl = "http://127.0.0.1:8000";
-const loopbackHosts = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 function isHealthy(body: unknown): body is HealthResponse {
   return typeof body === "object" && body !== null &&
@@ -11,15 +9,10 @@ function isHealthy(body: unknown): body is HealthResponse {
     "database" in body && body.database === "ready";
 }
 
-export async function readApiHealth(
-  apiUrl = process.env.RAYRIDE_API_URL ?? defaultApiUrl,
-): Promise<HealthResponse | null> {
+export async function readApiHealth(apiUrl?: string): Promise<HealthResponse | null> {
   try {
-    const origin = new URL(apiUrl);
-    if (origin.protocol !== "http:" || !loopbackHosts.has(origin.hostname) ||
-        origin.username || origin.password || origin.pathname !== "/" || origin.search || origin.hash) {
-      return null;
-    }
+    const origin = readLocalApiOrigin(apiUrl);
+    if (!origin) return null;
 
     const response = await fetch(new URL("/health", origin), {
       cache: "no-store",

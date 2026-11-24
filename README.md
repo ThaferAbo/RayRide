@@ -1,13 +1,14 @@
 # RayRide
 
-RayRide is the CSE491 airport transfer reservation prototype from Group 4. Phase 2 adds local flight-ticket extraction to the API. The web app shows API and SQLite status. Ticket review and simulated reservations are planned for later phases.
+RayRide is the CSE491 airport transfer reservation prototype from Group 4. Upload a fictional flight ticket or enter the flight details yourself, review the arrival and destination, then save and retrieve a simulated reservation.
 
 | Path | Contents |
 | --- | --- |
 | [`frontend/`](frontend/) | Next.js App Router, React, TypeScript, and Tailwind CSS |
-| [`api/`](api/) | FastAPI, ticket extraction, Pydantic contracts, and a SQLAlchemy/SQLite foundation |
+| [`api/`](api/) | FastAPI, ticket extraction, and simulated reservations in SQLite |
 | [`samples/`](samples/) | Fictional tickets, independent field labels, and fixture generation instructions |
 | [`docs/implementation-log.md`](docs/implementation-log.md) | Decisions, verification results, and known limitations |
+| [`docs/meeting-5-demo.md`](docs/meeting-5-demo.md) | Demo setup and rehearsal checklist |
 | `lib/`, `test/`, `assets/`, and Flutter platform directories | Legacy Flutter transfer demo |
 | `Backend/` | Ignored local .NET course solution, available only on machines that already have it |
 
@@ -31,7 +32,9 @@ npm ci
 npm run dev
 ```
 
-Open the [status page](http://127.0.0.1:3000). It should show **Operational**. The [health endpoint](http://127.0.0.1:8000/health) returns `{"status":"ok","database":"ready"}` after SQLite initialization. The [API documentation](http://127.0.0.1:8000/docs) lists the live health and extraction endpoints and the planned reservation schemas.
+Open the [booking page](http://127.0.0.1:3000) and upload `samples/scanned-ticket.pdf`. Verify the four suggested fields, add a destination, and check the review box. After saving, reload the confirmation or use **Find a reservation** with the displayed reference. To try recovery, upload `samples/unreadable-ticket.png` and enter the details manually. [Meeting 5 checklist](docs/meeting-5-demo.md)
+
+The [system status page](http://127.0.0.1:3000/status) shows API and SQLite readiness. The [health endpoint](http://127.0.0.1:8000/health) returns `{"status":"ok","database":"ready"}` after SQLite initialization. The [API documentation](http://127.0.0.1:8000/docs) lists the live endpoints.
 
 Both services start without a local environment file. To override defaults, copy `api/.env.example` to `api/.env` or `frontend/.env.example` to `frontend/.env.local`. The API database path defaults to `api/data/rayride.sqlite3`. Relative database paths resolve from `api/`. The web server reads `RAYRIDE_API_URL` at request time and accepts loopback HTTP origins. Both documented servers bind to `127.0.0.1`.
 
@@ -69,7 +72,13 @@ curl.exe --fail-with-body --form 'ticket=@samples/scanned-ticket.pdf;type=applic
 
 Send one `ticket` part ending in `.pdf`, `.png`, `.jpg`, or `.jpeg`. The API checks the file extension, declared media type, signature, and ability to decode the supported format. It accepts files up to 10 MiB, PDFs up to five pages with at most 20,000 embedded characters per page, and images up to 12 million pixels. Uploads and OCR images are processed in memory. The API stores no ticket files, OCR transcripts, or reservation data from this endpoint.
 
-An HTTP 200 response includes the method (`pdf_text`, `ocr`, `mixed`, or `unavailable`), field statuses, and warnings. A low-confidence or conflicting value may be withheld as `null`. Arrival time stays local to the arrival airport. Incomplete or failed OCR still returns a response that a later review screen can use for manual entry. Invalid requests use `400` for malformed multipart, `413` for limits, `415` for unsupported or mismatched formats, and `422` for unreadable, invalid, or empty files.
+An HTTP 200 response includes the method (`pdf_text`, `ocr`, `mixed`, or `unavailable`), field statuses, and warnings. A low-confidence or conflicting value may be withheld as `null`. Arrival time stays local to the arrival airport. Incomplete or failed OCR leaves the review form available for manual entry. Invalid requests use `400` for malformed multipart, `413` for limits, `415` for unsupported or mismatched formats, and `422` for unreadable, invalid, or empty files.
+
+### Simulated reservations and privacy
+
+The browser sends requests to the Next.js server on the same origin. The server forwards only the ticket, booking, and lookup requests to a configured loopback API. Requests and responses have byte and time limits. Use fictional or anonymized tickets. The app discards ticket files and saves only the reviewed flight, local arrival date and time, destination, reference, simulated status, and creation timestamp to SQLite.
+
+The API issues a reference after committing the reservation. The confirmation page loads the saved record by that reference. Edits clear the review checkbox. If a reply is lost, retry with the same trip details in the same form to recover the original reservation. API clients can use a version 4 UUID in `Idempotency-Key`. The initial write returns `201`, an identical retry returns `200`, and reuse of the same key for different details returns `409`. A confirmation reference can be used by anyone who has access to the local prototype, so keep it private if necessary.
 
 ## Verification and development
 
@@ -93,10 +102,11 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
-npm start
+npx playwright install chromium
+npm run test:e2e
 ```
 
-`npm start` serves the production build on port 3000. Stop the development server first if it is already using that port. Phase 2 passed the local contract checks, lint, typecheck, build, 49 API tests, and 3 web tests. The synthetic evaluation scored 21 of 27 labeled fields before correction. Hosted CI execution is pending. [Implementation log](docs/implementation-log.md) · [CI workflow](.github/workflows/ci.yml)
+The browser suite starts the production frontend on port 3131 and the real API on 8131 with a separate ignored SQLite file. It requires working Tesseract with English data for the scanned fixtures. The standard `npm start` serves the production build on port 3000. See the [implementation log](docs/implementation-log.md) for observed results and the [CI workflow](.github/workflows/ci.yml) for automated checks.
 
 Edit the Pydantic models in `api/app/schemas.py` when a contract changes. From `api/`, run `uv run --locked python -m app.export_openapi`. Then, from `frontend/`, run `npm run contracts:generate`. Keep both generated files, `api/openapi.json` and `frontend/lib/api.types.ts`, with the change.
 
@@ -104,8 +114,8 @@ Edit the Pydantic models in `api/app/schemas.py` when a contract changes. From `
 | --- | --- |
 | `GET /health` | Live. Returns `HealthResponse` or HTTP 503 with `ErrorResponse` if the database check fails. |
 | `POST /api/v1/tickets/extract` | Live. Multipart `ticket` file (PDF, PNG, or JPEG) to `ExtractionResult` or a typed upload error. |
-| `POST /api/v1/reservations` | Planned. `ReservationRequest` with explicitly reviewed data to `ReservationResponse`. |
-| `GET /api/v1/reservations/{reference}` | Planned. Retrieves a stored `ReservationResponse` by its confirmation reference. |
+| `POST /api/v1/reservations` | Live. Validates an explicitly reviewed `ReservationRequest` and returns the committed `ReservationResponse`. |
+| `GET /api/v1/reservations/{reference}` | Live. Retrieves a stored simulated reservation by its confirmation reference. |
 
 Keep the CSE491 work in `frontend/` and `api/`. Leave the legacy applications in their current directories. Use the dependency lockfiles and record commands and observed results in the implementation log. Keep the local plan, personal `AGENTS.md`, credentials, and database files out of Git.
 
@@ -114,6 +124,8 @@ Keep the CSE491 work in `frontend/` and `api/`. Leave the legacy applications in
 Use fictional or anonymized ticket fixtures. Record the source, author, license, and required notices for external code, libraries, datasets, images, and other assets. Keep applicable notices with redistributed material. The lockfiles record dependencies and versions. In the project report, disclose AI assistance and record actual team contributions.
 
 The CSE491 app and sample corpus use no legacy assets. Verify reuse rights before importing any legacy image or other asset. The extraction pipeline uses pypdfium2/PDFium, Tesseract and its English data, Pillow, and OpenCV. Keep the applicable upstream notices if redistributing any of those components or binaries. [pypdfium2 licensing](https://pypdfium2.readthedocs.io/en/stable/readme.html#licensing) · [Tesseract license](https://github.com/tesseract-ocr/tesseract/blob/main/LICENSE) · [OpenCV license](https://github.com/opencv/opencv/blob/4.x/LICENSE)
+
+The booking page uses an original AI-generated coastline image, the Manrope typeface under the SIL Open Font License, and Phosphor Icons under MIT. The font and icons are served with local project dependencies. [Asset provenance](docs/implementation-log.md#phase-3-review-and-simulated-reservations) · [Manrope](https://github.com/sharanda/manrope) · [Phosphor Icons](https://github.com/phosphor-icons/react)
 
 ## Legacy Flutter demo
 

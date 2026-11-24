@@ -236,9 +236,61 @@
         "title": "Missing",
         "type": "object"
       },
+      "ReservationErrorDetail": {
+        "properties": {
+          "code": {
+            "enum": [
+              "invalid_reservation",
+              "reservation_not_found",
+              "reservation_conflict",
+              "reservation_unavailable",
+              "invalid_content_type",
+              "request_too_large"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ReservationErrorDetail",
+        "type": "object"
+      },
+      "ReservationErrorResponse": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/ReservationErrorDetail"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ReservationErrorResponse",
+        "type": "object"
+      },
       "ReservationRequest": {
         "additionalProperties": false,
-        "description": "Planned reservation request using data explicitly reviewed by the traveler.",
+        "description": "Reservation request using data explicitly reviewed by the traveler.",
         "properties": {
           "arrival_airport": {
             "pattern": "^[A-Z]{3}$",
@@ -289,7 +341,7 @@
         "type": "object"
       },
       "ReservationResponse": {
-        "description": "Planned confirmation response for a saved simulated reservation.",
+        "description": "Confirmation for a saved simulated reservation.",
         "properties": {
           "arrival_airport": {
             "pattern": "^[A-Z]{3}$",
@@ -543,12 +595,178 @@
     }
   },
   "info": {
-    "description": "Local API health and editable flight-ticket suggestions. Reservation schemas describe planned contracts.",
+    "description": "Local flight-ticket extraction and simulated reservations.",
     "title": "RayRide CSE491 API",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/reservations": {
+      "post": {
+        "operationId": "create_reservation_api_v1_reservations_post",
+        "parameters": [
+          {
+            "description": "Optional version 4 UUID. Reuse it for identical retries.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationResponse"
+                }
+              }
+            },
+            "description": "Saved reservation returned for an identical retry"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Create Reservation",
+        "tags": [
+          "reservations"
+        ]
+      }
+    },
+    "/api/v1/reservations/{reference}": {
+      "get": {
+        "operationId": "get_reservation_api_v1_reservations__reference__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reference",
+            "required": true,
+            "schema": {
+              "pattern": "^RR-[A-Z0-9]{12}$",
+              "title": "Reference",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Get Reservation",
+        "tags": [
+          "reservations"
+        ]
+      }
+    },
     "/api/v1/tickets/extract": {
       "post": {
         "description": "Returns editable suggestions. OCR failures and unreadable fields can be entered manually.",

@@ -19,13 +19,16 @@ def test_health_initializes_sqlite_and_publishes_contract(tmp_path):
         assert database.is_file()
 
         contract = client.get("/openapi.json").json()
-        assert set(contract["paths"]) == {"/health", "/api/v1/tickets/extract"}
+        assert set(contract["paths"]) == {
+            "/health",
+            "/api/v1/tickets/extract",
+            "/api/v1/reservations",
+            "/api/v1/reservations/{reference}",
+        }
         assert "503" in contract["paths"]["/health"]["get"]["responses"]
         assert {"ExtractionResult", "ReservationRequest", "ReservationResponse"} <= set(
             contract["components"]["schemas"]
         )
-        assert client.post("/api/v1/reservations").status_code == 404
-        assert client.get("/api/v1/reservations/RR-123456789ABC").status_code == 404
 
 
 def test_health_reports_database_failure(tmp_path):

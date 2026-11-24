@@ -10,13 +10,13 @@ from starlette.concurrency import run_in_threadpool
 
 from .db import Reservation, initialize_database
 from .extraction import LocalTicketExtractor, TicketExtractor
+from .reservations import router as reservations_router
 from .schemas import (
     ErrorDetail,
     ErrorResponse,
     ExtractionResult,
     HealthResponse,
     ReservationRequest,
-    ReservationResponse,
     TicketErrorResponse,
 )
 from .settings import Settings
@@ -65,12 +65,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     application = FastAPI(
         title="RayRide CSE491 API",
-        version="0.2.0",
-        description=(
-            "Local API health and editable flight-ticket suggestions. Reservation schemas describe planned contracts."
-        ),
+        version="0.3.0",
+        description="Local flight-ticket extraction and simulated reservations.",
         lifespan=lifespan,
     )
+    application.include_router(reservations_router)
 
     @application.get("/health", responses={503: {"model": ErrorResponse}})
     def health(request: Request) -> HealthResponse:
@@ -107,7 +106,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=exc.status, detail={"code": code, "message": str(exc)}
             ) from exc
 
-    # Publish planned components alongside the live route without exposing placeholder endpoints.
+    # The reservation route reads JSON with a byte limit before validating the request model.
     default_openapi = application.openapi
 
     def openapi():
@@ -115,7 +114,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _, definitions = models_json_schema(
             [
                 (ReservationRequest, "validation"),
-                (ReservationResponse, "serialization"),
             ],
             ref_template="#/components/schemas/{model}",
         )

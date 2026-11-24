@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  foundation:
+  prototype:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -62,6 +62,12 @@ jobs:
           npm test
           npm run build
 
+      - name: Run browser reservation tests
+        working-directory: frontend
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
       - name: Smoke test the running API and web app
         run: |
           export RAYRIDE_DATABASE_PATH="$RUNNER_TEMP/rayride-smoke.sqlite3"
@@ -85,5 +91,5 @@ jobs:
           curl --fail --silent --show-error --form 'ticket=@samples/scanned-ticket.pdf;type=application/pdf' \
             "$RAYRIDE_API_URL/api/v1/tickets/extract" | jq -e '.method == "ocr" and .arrival_airport.value == "AYT"'
           curl --fail --silent --show-error --retry 20 --retry-connrefused --retry-delay 1 \
-            http://127.0.0.1:3000/ > "$RUNNER_TEMP/rayride-web.html"
+            http://127.0.0.1:3000/status > "$RUNNER_TEMP/rayride-web.html"
           grep -q 'The API responded and the database is ready.' "$RUNNER_TEMP/rayride-web.html"

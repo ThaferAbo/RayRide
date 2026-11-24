@@ -20,7 +20,8 @@ AirportCode = Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")]
 Destination = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
 ]
-Reference = Annotated[str, StringConstraints(pattern=r"^RR-[A-Z0-9]{12}$")]
+REFERENCE_PATTERN = r"^RR-[A-Z0-9]{12}$"
+Reference = Annotated[str, StringConstraints(pattern=REFERENCE_PATTERN)]
 TicketMediaType = Literal["application/pdf", "image/png", "image/jpeg"]
 ExtractionMethod = Literal["pdf_text", "ocr", "mixed", "unavailable"]
 
@@ -146,7 +147,7 @@ class ReservationDetails(BaseModel):
 
 
 class ReservationRequest(ReservationDetails):
-    """Planned reservation request using data explicitly reviewed by the traveler."""
+    """Reservation request using data explicitly reviewed by the traveler."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -161,8 +162,25 @@ class ReservationRequest(ReservationDetails):
 
 
 class ReservationResponse(ReservationDetails):
-    """Planned confirmation response for a saved simulated reservation."""
+    """Confirmation for a saved simulated reservation."""
 
     reference: Reference
     status: Literal["simulated"]
     created_at: AwareDatetime
+
+
+class ReservationErrorDetail(BaseModel):
+    code: Literal[
+        "invalid_reservation",
+        "reservation_not_found",
+        "reservation_conflict",
+        "reservation_unavailable",
+        "invalid_content_type",
+        "request_too_large",
+    ]
+    message: str
+    fields: dict[str, str] | None = None
+
+
+class ReservationErrorResponse(BaseModel):
+    detail: ReservationErrorDetail

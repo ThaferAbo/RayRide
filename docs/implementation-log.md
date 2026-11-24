@@ -69,6 +69,43 @@ Results describe this small English-language synthetic corpus and Windows OCR bu
 
 **Phase 2 local gate passed.** The API accepts and validates supported files, preserves usable suggestions when OCR fails, and returns explicit missing or uncertain fields. Traveler review, reservation creation and retrieval, and end-to-end workflow acceptance remain later-phase work.
 
+## Phase 3 review and simulated reservations
+
+### Shipped behavior
+
+- The responsive Next.js flow starts with ticket upload or manual entry. It shows the source status for each flight field, resets review after edits, allows destination selection or custom entry, and displays a confirmation from the saved record. A traveler can reload or look up the confirmation by its reference. The original readiness check is available at `/status`.
+- The browser uses same-origin routes. The Next.js server forwards only the defined operations to the configured loopback API, with request and response byte and time limits and no caching. The FastAPI ticket limits and parser are unchanged. Neither the web app nor the API saves uploads or OCR transcripts.
+- The reservation API persists only reviewed trip details, a reference, the simulated status, and the UTC creation timestamp. Arrival date and time remain local strings throughout browser review. SQLite stores their date and time values without a timezone. The API returns the confirmation after commit. An identical retry with the same key reads the committed confirmation. The SQLite primary key prevents competing writes from creating duplicate references.
+- The hero image is original AI-generated artwork for this project. The web asset is `frontend/public/rayride-coast.webp` and was generated with the built-in ImageGen tool. Manrope is distributed under the SIL Open Font License and Phosphor Icons under MIT. No legacy imagery was reused.
+
+### Local verification on 24 November 2026
+
+The Phase 3 working tree was tested on Windows with Tesseract 5.4 and Chromium through Playwright 1.65.1. The checkout started at `22fe779`. Tests wrote only to isolated databases.
+
+| Check | Observed result |
+| --- | --- |
+| `uv sync --locked`, Ruff lint and format, OpenAPI export check, and `uv run --locked pytest -q` with `RAYRIDE_REQUIRE_OCR_TESTS=1` | Passed. **61 tests**, including direct validation, failed commit rollback, concurrent retry, and retrieval after the API reopens SQLite. |
+| `uv run --locked python -m scripts.evaluate_tickets` | Phase 2 measurement reproduced at **21/27** labeled fields before manual correction. |
+| `npm ci`, contract generation and check, lint, typecheck, `npm test`, and production build | Passed. **7 unit tests**, including bounded forwarding, rejecting other origins, and upstream timeout handling. |
+| `npm run test:e2e` | Passed. **8 Chromium tests** used the production Next.js build and a live local FastAPI instance. Confirmed no cross-origin browser requests during the text and scanned ticket flows. |
+| Workflow and Git checks | Local `actionlint` and Git whitespace checks passed. The legacy Flutter and local .NET paths were preserved. Hosted CI execution is pending. |
+
+| Browser scenario | Observed result |
+| --- | --- |
+| `text-ticket.pdf` and `scanned-ticket.pdf` | Saved the reviewed flight values with the chosen destination. Reload and lookup in a fresh browser context returned the same reference and details. |
+| `image-ticket.jpeg` | Extracted the flight and arrival airport and saved the reviewed reservation. |
+| `ambiguous-ticket.pdf` | Displayed four uncertain fields. Editing cleared the previous review, and a new review saved the corrected values including fractional local seconds. |
+| `unreadable-ticket.png` | Displayed missing fields and recovered through manual entry. Saved the reviewed values in a 390-pixel-wide browser viewport. |
+| Invalid file, invalid review, and API failures | Rejected an unsupported format, a corrupted PDF, an invalid airport, an unreviewed submission, and a cross-origin write. Recovered from an extraction error and an incompatible reply. |
+| Lost reply after commit | The interface disabled the pending save action. Retrying with the same trip details returned the already-saved reservation with the same reference. |
+| System status | The retained readiness page reported the API and SQLite as operational. |
+
+**Phase 3 local gate passed.** The main and fallback flows are ready to demonstrate on this machine. OCR accuracy is measured on a small synthetic corpus. Retry recovery retains the same key while the current form is open. Confirmation lookup depends on possession of the reference and access to the local app. Hosted CI, pilot usability, and second-machine reproduction are unverified. [Meeting 5 rehearsal checklist](meeting-5-demo.md)
+
+### Hero artwork prompt
+
+> Create an original photorealistic editorial travel photograph for a very wide airport transfer booking website hero. View from above the deep navy Aegean waters toward a sunlit Mediterranean coastline, warm pale limestone cliffs and a small coastal city with distant mountains. A single unbranded white commercial airplane banks gently toward the city on the right side, seen from above and slightly behind. Put the aircraft and almost all land in the right half, with generous dark open water across the left half for readable overlaid website text. Wide panoramic framing with the key visual in the middle vertical band so a 3:1 center crop works. Natural late-afternoon haze, warm ivory highlights, restrained teal water, premium and plausible travel photography. No words, typography, graphics, logos, airline marks, watermarks or borders.
+
 ## Legacy Flutter baseline
 
 Phase 0 ran `flutter test --no-pub --reporter expanded` in a temporary copy against the installed Flutter cache. The only Flutter widget test failed at `test/widget_test.dart:19` because it expected a starter counter with text `0`. Dart analysis exited 0 with 24 deprecation notices, and the cached Flutter web build succeeded. The cached package graph differed from `pubspec.lock`. Phase 1 preserves the Flutter and local .NET applications and uses separate Node and Python checks.

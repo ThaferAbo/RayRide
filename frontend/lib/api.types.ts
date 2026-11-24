@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/v1/reservations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Reservation */
+        post: operations["create_reservation_api_v1_reservations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reservations/{reference}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Reservation */
+        get: operations["get_reservation_api_v1_reservations__reference__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tickets/extract": {
         parameters: {
             query?: never;
@@ -131,9 +165,27 @@ export interface components {
             /** Value */
             value: null;
         };
+        /** ReservationErrorDetail */
+        ReservationErrorDetail: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "invalid_reservation" | "reservation_not_found" | "reservation_conflict" | "reservation_unavailable" | "invalid_content_type" | "request_too_large";
+            /** Fields */
+            fields?: {
+                [key: string]: string;
+            } | null;
+            /** Message */
+            message: string;
+        };
+        /** ReservationErrorResponse */
+        ReservationErrorResponse: {
+            detail: components["schemas"]["ReservationErrorDetail"];
+        };
         /**
          * ReservationRequest
-         * @description Planned reservation request using data explicitly reviewed by the traveler.
+         * @description Reservation request using data explicitly reviewed by the traveler.
          */
         ReservationRequest: {
             /** Arrival Airport */
@@ -162,7 +214,7 @@ export interface components {
         };
         /**
          * ReservationResponse
-         * @description Planned confirmation response for a saved simulated reservation.
+         * @description Confirmation for a saved simulated reservation.
          */
         ReservationResponse: {
             /** Arrival Airport */
@@ -279,6 +331,136 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    create_reservation_api_v1_reservations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional version 4 UUID. Reuse it for identical retries. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReservationRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved reservation returned for an identical retry */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationResponse"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationErrorResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationErrorResponse"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationErrorResponse"];
+                };
+            };
+        };
+    };
+    get_reservation_api_v1_reservations__reference__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationErrorResponse"];
+                };
+            };
+        };
+    };
     extract_ticket_api_v1_tickets_extract_post: {
         parameters: {
             query?: never;
