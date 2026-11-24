@@ -4,7 +4,7 @@ RayRide is the CSE491 Senior Design Project I prototype from Group 4 (Efkan, Tha
 
 ![RayRide booking page in the verified desktop prototype](docs/evidence/phase4/report-01-upload.png)
 
-The verified application revision is `005aef6`. The local academic demo is ready. Pilot usability (NFR-2) and setup on a second development machine (NFR-5) are open. [Final report and evidence](docs/final-report.md) · [Presentation and live demo](docs/final-demo.md) · [Hosted checks for 005aef6](https://github.com/ThaferAbo/RayRide/actions/runs/45394288030)
+The published rehearsal used `005aef6`. The independent final audit records the later isolated WSL run and fixes. Pilot usability (NFR-2) and setup on a second development machine (NFR-5) are open. [Final report and evidence](docs/final-report.md) · [Final QA audit](docs/final-qa.md) · [Presentation and live demo](docs/final-demo.md) · [Hosted checks for 005aef6](https://github.com/ThaferAbo/RayRide/actions/runs/45394288030)
 
 ## Prerequisites
 
@@ -75,6 +75,8 @@ npm run test:e2e
 ```
 
 The browser suite starts the production web app on port 3131 and the real API on 8131, with an isolated SQLite file. Set `RAYRIDE_CAPTURE_EVIDENCE=1` before `npm run test:e2e` to recreate the report captures. The Windows and hosted Ubuntu runs each passed 70 API, 8 frontend unit and 12 Chromium tests. The OCR scores are recorded separately by corpus and environment. [Requirements matrix and reproduction details](docs/phase4-verification.md) · [CI workflow](.github/workflows/ci.yml)
+
+For the three-engine local run, install `chromium firefox webkit` with Playwright and use `npm run test:e2e -- --browser=all --workers=2`. Ubuntu may need Playwright system dependencies. The audit records two crashes in the pinned Firefox runner and the supplemental scans that completed. Evaluate the separate audit corpus with `uv run --locked python -m scripts.evaluate_tickets --corpus final-qa` from `api/`. [Final QA setup and results](docs/final-qa.md)
 
 ## Scope and handoff
 

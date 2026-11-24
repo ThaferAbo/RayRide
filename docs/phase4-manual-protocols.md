@@ -17,7 +17,7 @@ Status for both protocols is **not run**. Record only observations from actual v
 
 ## Second-machine setup
 
-1. Use a different development machine and a fresh copy of the tested source revision or Phase 4 patch. Keep the original machine's `.env`, virtual environment, `node_modules`, and SQLite files out of the copy.
+1. Use a different physical development machine and a fresh copy of the source revision or patch being evaluated. Keep the original machine's `.env`, virtual environment, `node_modules`, and SQLite files out of the copy.
 2. Follow the [README](../README.md) to install Node 24, npm 11, Python 3.11, uv and Tesseract English data. Record the OS, architecture, revision, tool versions, `tesseract --list-langs` and any setup changes needed.
 3. Use a fresh local SQLite file. Start the API and web app. Verify **Operational**, upload `scanned-ticket.pdf`, save a simulated reservation and look it up after restarting the API with the same SQLite file.
 4. Run the [Phase 4 checks](phase4-verification.md#reproduce-and-capture) with real OCR required. Record exact commands, pass/fail/skip counts and differences from the first machine. Mark NFR-5 verified once setup and the smoke test succeed on that machine. Keep machine-local paths and credentials out of shared notes.
@@ -25,3 +25,5 @@ Status for both protocols is **not run**. Record only observations from actual v
 | Revision | Machine and OS | Tool versions | Setup departures | Smoke and restart | Automated checks | Result |
 | --- | --- | --- | --- | --- | --- | --- |
 | | | | | | | |
+
+The [final QA audit](final-qa.md) documents AI-assisted browser sessions and a clean WSL setup on the original host. Both manual checks are still open.

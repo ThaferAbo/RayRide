@@ -11,3 +11,7 @@ Run `uv run --locked python -m scripts.evaluate_tickets` from `api/` to measure 
 The seven files in `phase4/` exercise two-column labels, an explicit terminal, codeshares, date and clock ambiguity, a dark image, a tilted low-contrast JPEG, and a cropped ticket. All flight details and the cropped ticket's passenger marker are fictional. The expansion's [independently recorded labels](phase4/expected.json) were written from the intended source data before running the extractor. The generator does not read the labels. A `null` has no single gold value, and `review` lists fields that require review or manual entry.
 
 From `api/`, reproduce the expansion with `uv run --locked python -m scripts.build_phase4_samples` and score it with `uv run --locked python -m scripts.evaluate_tickets --corpus phase4`. The default `--corpus original` still uses the eight original files and their original labels. [Observed results](../docs/phase4-verification.md#extraction-before-correction)
+
+## Final QA probes
+
+The five images in [`final-qa/`](final-qa/) test an overnight panel, a sideways strip, low-resolution JPEG, and labels that omit the airport or local clock. The [separate field labels](final-qa/expected.json) were recorded before scoring. These fictional fixtures use Pillow's built-in font. Generate them with `uv run --locked python -m scripts.build_final_qa_samples` from `api/` and evaluate with `uv run --locked python -m scripts.evaluate_tickets --corpus final-qa`. [Audit results](../docs/final-qa.md#independent-ocr-probes)

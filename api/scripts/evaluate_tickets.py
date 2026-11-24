@@ -13,7 +13,11 @@ from app.settings import Settings
 
 SAMPLES = Path(__file__).resolve().parents[2] / "samples"
 MEDIA_TYPES = {".pdf": "application/pdf", ".png": "image/png", ".jpeg": "image/jpeg"}
-CORPORA = {"original": SAMPLES, "phase4": SAMPLES / "phase4"}
+CORPORA = {
+    "original": SAMPLES,
+    "phase4": SAMPLES / "phase4",
+    "final-qa": SAMPLES / "final-qa",
+}
 
 
 def main() -> None:

@@ -359,3 +359,13 @@ def test_real_ocr_leaves_no_temp_files_logs_or_reservations(
             assert database.execute("SELECT count(*) FROM reservations").fetchone() == (
                 0,
             )
+
+
+@pytest.mark.ocr
+def test_real_ocr_keeps_eta_out_of_the_arrival_airport(client, ocr_executable):
+    with client(tesseract_executable=ocr_executable) as app:
+        response = _post_sample(app, "final-qa/eta-without-airport.png")
+    assert response.status_code == 200
+    result = response.json()
+    assert result["method"] == "ocr"
+    assert result["arrival_airport"] == {"status": "missing", "value": None}

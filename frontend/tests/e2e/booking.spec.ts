@@ -105,6 +105,33 @@ test("recovers from unreadable OCR with manual entry on a narrow screen", async 
   await expect(page.getByText("Fictional Riverside Lodge", { exact: true })).toBeVisible();
 });
 
+test("manual recovery after a replacement ticket does not reuse the previous booking draft", async ({ page }) => {
+  await page.goto("/");
+  await upload(page, "scanned-ticket.pdf");
+  await page.getByLabel("Destination", { exact: true }).fill("Fictional First Hotel");
+  const back = page.getByRole("button", { name: "Back to ticket" });
+  const manual = page.getByRole("button", { name: "Enter details manually" });
+
+  await back.click();
+  await manual.click();
+  await expect(page.getByLabel("Flight number", { exact: true })).toHaveValue("ZZ731");
+  await expect(page.getByLabel("Destination", { exact: true })).toHaveValue("Fictional First Hotel");
+
+  await back.click();
+  await page.locator("#ticket-file").setInputFiles({
+    name: "incomplete.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7\n"),
+  });
+  await page.getByRole("button", { name: "Extract flight details" }).click();
+  await expect(page.getByRole("region", { name: "Upload your flight ticket" }).getByRole("alert"))
+    .toContainText("PDF is incomplete or damaged");
+  await manual.click();
+
+  for (const name of ["Flight number", "Arrival airport", "Arrival date", "Arrival time", "Destination"]) {
+    await expect(page.getByLabel(name, { exact: true })).toHaveValue("");
+  }
+  await expect(page.getByRole("checkbox", { name: "I’ve reviewed", exact: false })).not.toBeChecked();
+});
+
 test("rejects invalid inputs, handles a failed extraction request, and accepts a clean retry", async ({ page }) => {
   await page.goto("/");
   const input = page.locator("#ticket-file");

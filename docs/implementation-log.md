@@ -123,6 +123,12 @@ The Phase 3 working tree was tested on Windows with Tesseract 5.4 and Chromium t
 - Checked the documentation links and diagrams. Live OpenAPI matched the checked-in contract, all eight diagram columns matched the SQLite model, and Git hashes confirmed that the fixture corpora and saved evidence were intact. [Technical design](architecture.md) · [REST API](api.md)
 - Finished the handoff documentation and presentation outline. The Git record supports commit attribution to `Thaelith`. Named individual contributions still need team confirmation. NFR-2 and NFR-5 remain open, and the team handles submission and presentation. [Final report](final-report.md) · [Attribution](attribution.md) · [CSE492 roadmap](cse492-roadmap.md)
 
+## Independent final QA
+
+- Cloned `23c4fb1` into Ubuntu 26.04.1 on WSL 2 and installed locked dependencies with local caches and fresh databases. After the fixes, **72 API tests with real OCR** and **8 frontend unit tests** passed. Chromium and WebKit each passed 13 browser tests. Firefox passed 11 in the pinned runner and crashed in two combined accessibility checks. Separate axe scans passed four states on Firefox browser revision 1578. [QA results and screenshots](final-qa.md)
+- Fixed stale booking details after a rejected replacement, corrected the parser's ETA-as-airport result, and moved Pillow from 12.3.0 to 13.0.0. Runtime advisory checks reported zero findings after the upgrade. The two preserved corpora produced identical per-ticket results before and after. The five independently labeled audit images reduced confident fills on unlabeled fields from one to zero. [Findings](final-qa.md#findings-and-fixes) · [OCR results](final-qa.md#independent-ocr-probes)
+- Verified concurrent same-key and distinct-key saves, retrieval and replay after restart, and ordinary origin, validation and cache controls. NFR-2 and NFR-5 remain open. [Manual protocols](phase4-manual-protocols.md)
+
 ## Legacy Flutter baseline
 
 Phase 0 ran `flutter test --no-pub --reporter expanded` in a temporary copy against the installed Flutter cache. The only Flutter widget test failed at `test/widget_test.dart:19` because it expected a starter counter with text `0`. Dart analysis exited 0 with 24 deprecation notices, and the cached Flutter web build succeeded. The cached package graph differed from `pubspec.lock`. Phase 1 preserves the Flutter and local .NET applications and uses separate Node and Python checks.

@@ -113,3 +113,10 @@ def test_explicit_arrival_airport_can_include_a_terminal():
         "status": "extracted",
         "value": "MUC",
     }
+
+
+def test_arrival_eta_is_a_clock_label_and_not_airport_evidence():
+    lines = [TicketLine("Arrival ETA 18:20")]
+    result = parse_ticket([lines], "ocr")
+    assert result.arrival_airport.model_dump() == {"status": "missing", "value": None}
+    assert result.arrival_local_time.value.isoformat() == "18:20:00"

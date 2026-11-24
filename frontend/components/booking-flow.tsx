@@ -63,6 +63,7 @@ export function BookingFlow() {
 
   function pickFile(next: File) {
     setFailure("");
+    setTrip(EMPTY_TRIP);
     if (!/\.(pdf|png|jpe?g)$/i.test(next.name)) {
       setFile(null);
       setFailure("Choose a PDF, PNG or JPEG ticket, or enter flight details manually.");

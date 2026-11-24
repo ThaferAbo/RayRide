@@ -30,7 +30,7 @@ flowchart TB
 
 1. The traveler chooses one file or opens manual entry. The Next.js route bounds browser uploads and allows expected content types from the same origin. FastAPI independently checks the multipart part, extension, media type, signature, and decoding limits.
 2. For PDFs with adequate embedded evidence, the service returns direct suggestions. For other PDFs or supported images, it prepares the image and invokes Tesseract locally. The response marks each flight field as extracted, uncertain, or missing. Only normalized candidate fields and warnings reach the review form.
-3. The traveler supplies missing details, enters a destination, and confirms review. An edit clears prior review. The API validates the reviewed JSON even if a client bypasses the form.
+3. The traveler supplies missing details, enters a destination, and confirms review. An edit clears prior review. Choosing another ticket clears the existing draft before extraction or manual recovery. The API validates the reviewed JSON even if a client bypasses the form.
 4. The API writes a simulated reservation and returns a reference after commit. The browser opens the confirmation using the reference. With the same retry key and normalized details, a repeated request returns the existing reservation. The form holds the key in memory while the page remains open.
 
 ## Database diagram

@@ -1,0 +1,42 @@
+{
+  "overnight-panel.png": {
+    "values": {
+      "flight_number": "ZZ613",
+      "arrival_airport": "HEL",
+      "arrival_date": "2027-02-03",
+      "arrival_local_time": "01:10:00"
+    }
+  },
+  "sideways-strip.png": {
+    "values": {
+      "flight_number": "ZZ815",
+      "arrival_airport": "LIS",
+      "arrival_date": "2027-01-08",
+      "arrival_local_time": "12:35:00"
+    }
+  },
+  "low-resolution.jpeg": {
+    "values": {
+      "flight_number": "ZZ842",
+      "arrival_airport": "NCE",
+      "arrival_date": "2027-03-16",
+      "arrival_local_time": "08:45:00"
+    }
+  },
+  "eta-without-airport.png": {
+    "values": {
+      "flight_number": "ZZ477",
+      "arrival_airport": null,
+      "arrival_date": "2027-02-03",
+      "arrival_local_time": "18:20:00"
+    }
+  },
+  "utc-without-local-time.png": {
+    "values": {
+      "flight_number": "ZZ524",
+      "arrival_airport": "ATH",
+      "arrival_date": "2027-02-12",
+      "arrival_local_time": null
+    }
+  }
+}

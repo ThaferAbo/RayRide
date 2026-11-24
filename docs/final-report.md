@@ -51,3 +51,5 @@ The prototype is ready for a local simulated demo. It uses no real provider, pay
 | Delivery | The team must confirm the presentation setup and final submission format, then submit and present the work. |
 
 [Manual protocols](phase4-manual-protocols.md) · [Licenses, asset credits, AI assistance and contribution evidence](attribution.md) · [Presentation outline and live demo](final-demo.md) · [CSE492 roadmap](cse492-roadmap.md)
+
+The [independent final QA audit](final-qa.md) records the isolated WSL verification, fixes and release status for the later working tree. The Phase 4 figures above remain the historical measurements.

@@ -19,7 +19,7 @@ from .schemas import (
 )
 
 _LABEL = re.compile(
-    r"^(ARRIVAL(?:\s+(?:AIRPORT|DATE\s*/\s*TIME|DATE|TIME))?|ARRIV(?:E|ES|ING)|"
+    r"^(ARRIVAL(?:\s+(?:AIRPORT|DATE\s*/\s*TIME|DATE|TIME|ETA))?|ARRIV(?:E|ES|ING)|"
     r"DESTINATION|TO|DEPARTURE(?:\s+(?:AIRPORT|DATE\s*/\s*TIME|DATE|TIME))?|"
     r"DEPART(?:S|ING)?|ORIGIN|FROM|"
     r"FLIGHT(?!\s+(?:DATE|TIME|STATUS|DURATION)\b)(?:\s+(?:NUMBER|NO\.?))?|"
@@ -192,6 +192,8 @@ class _TicketFields:
         )
         if label in ("TO", "DESTINATION"):
             field = "AIRPORT"
+        elif field == "ETA":
+            field = "TIME"
         if field in ("", "AIRPORT"):
             airports = _airports(value, explicit_airport=field == "AIRPORT")
             self.arrival_airport.record(airports, reliable)
