@@ -2,7 +2,7 @@
 
 **AI-Assisted Airport Transfer Reservation System · Group 4 · Fall 2026–2027**
 
-Efkan, Thafer and Alperen are the project team listed in the implementation plan. The verified prototype revision is [`005aef6f59fd570f3b83ff35e83664233973fd7a`](https://github.com/ThaferAbo/RayRide/commit/005aef6f59fd570f3b83ff35e83664233973fd7a). The Phase 5 documents accompany that application revision.
+Efkan, Thafer and Alperen are the project team listed in the implementation plan. The published Phase 6 release revision is `9749be2685a56df789f393071d7ec1ead93f6091`. The latest hosted check for that revision passed on 24 November 2026. [Published revision](https://github.com/ThaferAbo/RayRide/commit/9749be2685a56df789f393071d7ec1ead93f6091) · [Hosted CI](https://github.com/ThaferAbo/RayRide/actions/runs/45430637548)
 
 ## What the prototype delivers
 
@@ -16,21 +16,25 @@ Next.js serves the booking flow and forwards selected requests to FastAPI over l
 | --- | --- |
 | Required workflows | Text PDF, scanned PDF, JPEG, ambiguous ticket with a correction, and unreadable ticket with manual entry each produced a saved simulated confirmation. |
 | Validation and recovery | Invalid files and incomplete review blocked booking. Error and timeout paths allowed recovery. SQLite rejected a failed write without leaving a row, and a committed reservation was retrievable after an API restart. Retrying an identical keyed request returned the same reference. |
-| Accessibility and responsive checks | Automated axe checks found no violations in the four tested states. Chromium checks exercised keyboard focus and no horizontal overflow at 320, 390, 768 and 1280 px. |
-| Windows acceptance run | 70 API tests, 8 frontend unit tests and 12 Chromium tests passed with real OCR. Contract checks, lint, formatting checks and production build passed. |
-| Hosted Ubuntu 24.04 checks | The run for `005aef6` passed the same 70 API, 8 frontend unit and 12 Chromium tests, both corpus evaluations and the service smoke checks. |
-| Phase 5 local rehearsal | Scanned-ticket review and reference lookup passed. The unreadable-ticket fallback saved a second simulated reservation from manual entry. Browser access to external sites was blocked. [Rehearsal record](final-demo.md#rehearsal-record) |
+| Phase 6 hosted CI on Ubuntu 24.04 | **72 API tests with real OCR, 8 frontend unit tests, and 13 Chromium tests passed.** Contract checks, lint, formatting, typecheck, production build, both preserved corpus evaluations, and API/web smoke checks passed. [Run logs](https://github.com/ThaferAbo/RayRide/actions/runs/45430637548/job/138574659791) |
+| Phase 6 independent QA on WSL 2 | **72 API, 8 frontend unit, 13/13 Chromium, and 13/13 WebKit tests passed.** Firefox passed 11/13 in the pinned runner. Two combined acceptance tests crashed. Direct axe scans on Firefox browser revision 1578 covered four states without violations. The audit also verified keyboard focus, reflow at 320–1280 px, concurrent saves, and retrieval after restart. [QA results and limits](final-qa.md#browser-and-automated-results) |
+| Historical Phase 4 acceptance | The local Windows run and hosted Ubuntu CI for `005aef6` each passed 70 API, 8 frontend unit, and 12 Chromium tests with real OCR. [Phase 4 evidence](phase4-verification.md) |
+| Historical Phase 5 rehearsal at `005aef6` | Scanned-ticket review and lookup passed. Manual entry saved a second reservation after OCR failed. External browser requests were blocked. [Rehearsal record](final-demo.md#rehearsal-record) |
 
-The traceability matrix covers all FR-1–FR-8 and NFR-1–NFR-5. All eight functional requirements and the local checks for NFR-1, NFR-3 and NFR-4 have evidence. NFR-2 and NFR-5 are open. [Requirements matrix, expected and observed results, and commands](phase4-verification.md) · [Hosted run](https://github.com/ThaferAbo/RayRide/actions/runs/45394288030)
+The traceability matrix covers FR-1–FR-8 and NFR-1–NFR-5. All eight functional requirements and the local checks for NFR-1, NFR-3 and NFR-4 have evidence. NFR-2 and NFR-5 remain open. [Requirements matrix and workflow evidence](phase4-verification.md)
+
+Phase 6 cleared stale form values after a ticket replacement, corrected the ETA-as-airport error, and updated Pillow from 12.3.0 to 13.0.0. The backend and browser suites include regression checks for the two behavior fixes. [QA findings and fixes](final-qa.md#findings-and-fixes) · [Locked dependencies](attribution.md#runtime-dependencies)
 
 ### Extraction before review
 
-| Corpus | Windows | Hosted Ubuntu | Wrong confident labeled values |
+| Preserved corpus | Phase 4 Windows | Phase 4 hosted Ubuntu | Phase 6 hosted Ubuntu |
 | --- | ---: | ---: | ---: |
-| Original, 8 synthetic tickets | 21/27 (77.8%) | 22/27 (81.5%) | 0 in each run |
-| Expansion, 7 synthetic tickets | 14/20 (70.0%) | 15/20 (75.0%) | 0 in each run |
+| Original, 8 synthetic tickets | 21/27 (77.8%) | 22/27 (81.5%) | 22/27 (81.5%) |
+| Phase 4 expansion, 7 synthetic tickets | 14/20 (70.0%) | 15/20 (75.0%) | 15/20 (75.0%) |
 
-A match requires an exact normalized value marked `extracted`. Missing and uncertain labeled values count as misses. Fields without a single gold value were tracked separately and had no confident output in either run. On Windows the original corpus had four missing and two uncertain labeled values. The expansion had six uncertain labeled values. On hosted Ubuntu the counts were four missing and one uncertain for the original corpus, and five uncertain for the expansion. Scores differ by environment. The evidence does not isolate the cause. These small English-language synthetic samples cannot establish accuracy across airline layouts or languages. [Windows original JSON](evidence/phase4/ocr-original.json) · [Windows expansion JSON](evidence/phase4/ocr-expansion.json) · [Hosted evaluation logs](https://github.com/ThaferAbo/RayRide/actions/runs/45394288030/job/138445797141)
+A match requires an exact normalized value marked `extracted`. Missing and uncertain labeled values count as misses. Across the reported runs, the preserved corpora had zero confidently wrong labeled values and zero confident fills on fields without a single expected value. The two hosted runs both reported four missing and one uncertain value for the original corpus, and five uncertain values for the expansion. The paired WSL checks also returned identical per-ticket results before and after the Phase 6 fixes. These small English-language synthetic samples cannot establish accuracy across airline layouts or languages. [Phase 4 benchmark records](phase4-verification.md#extraction-before-correction) · [Phase 6 hosted evaluation logs](https://github.com/ThaferAbo/RayRide/actions/runs/45430637548/job/138574659791)
+
+The separate five-image QA set scored **8/18 (44.4%)** labeled fields both before and after the fixes in WSL. The number of confidently filled fields without an expected value fell from **1/2 to 0/2**. Rotation and low resolution remain weaknesses. The hosted workflow scores the two preserved corpora. [Separate QA corpus and raw results](final-qa.md#independent-ocr-probes)
 
 ### Report figures
 
@@ -41,15 +45,16 @@ A match requires an exact normalized value marked `extracted`. Missing and uncer
 
 ## Limits and handoff
 
-The prototype is ready for a local simulated demo. It uses no real provider, payment or driver dispatch. Reference lookup relies on local access and possession of the reference. There is no sign-in, and accessibility results are limited to the reported browser checks. The legacy Flutter app and local .NET solution are independent of the demo.
+The published Phase 6 revision is ready for a local simulated demo in Chromium. The audit also passed the WebKit suite. Reference lookup relies on local access and possession of the reference. The prototype uses no sign-in, real provider, payment, or driver dispatch. Accessibility results cover the tested browser states. The legacy Flutter app and local .NET solution are independent of the demo.
 
 | Pending item | Evidence needed |
 | --- | --- |
 | NFR-2 pilot usability | Observe 2–3 volunteers using the flow unaided and record outcomes and issues. There are no pilot results yet. |
 | NFR-5 second development machine | Follow the clean setup and smoke protocol on another machine. The hosted CI run supplies separate cross-platform automation evidence. |
 | Individual contributions | Confirm who completed or reviewed each named artifact. The commit records establish the `Thaelith` account and affected files. The team's individual attribution is pending. |
+| Two pinned Firefox test failures | Investigate the crashes in the upload/review/confirmation and unreadable-fallback acceptance tests. The separate successful axe scans leave both test failures open. [Browser results](final-qa.md#browser-and-automated-results) |
 | Delivery | The team must confirm the presentation setup and final submission format, then submit and present the work. |
 
 [Manual protocols](phase4-manual-protocols.md) · [Licenses, asset credits, AI assistance and contribution evidence](attribution.md) · [Presentation outline and live demo](final-demo.md) · [CSE492 roadmap](cse492-roadmap.md)
 
-The [independent final QA audit](final-qa.md) records the isolated WSL verification, fixes and release status for the later working tree. The Phase 4 figures above remain the historical measurements.
+The [Phase 6 QA screenshots](final-qa.md#screenshots-from-the-running-app) show the replacement-draft fix, saved confirmation, and mobile recovery and review.

@@ -4,7 +4,7 @@ RayRide is the CSE491 Senior Design Project I prototype from Group 4 (Efkan, Tha
 
 ![RayRide booking page in the verified desktop prototype](docs/evidence/phase4/report-01-upload.png)
 
-The published rehearsal used `005aef6`. The independent final audit records the later isolated WSL run and fixes. Pilot usability (NFR-2) and setup on a second development machine (NFR-5) are open. [Final report and evidence](docs/final-report.md) · [Final QA audit](docs/final-qa.md) · [Presentation and live demo](docs/final-demo.md) · [Hosted checks for 005aef6](https://github.com/ThaferAbo/RayRide/actions/runs/45394288030)
+The published Phase 6 revision `9749be2` is ready for a local simulated demo in Chromium. Pilot usability (NFR-2), setup on a second physical machine (NFR-5), individual contribution confirmation, and two failures in the pinned Firefox runner remain open. [Release revision](https://github.com/ThaferAbo/RayRide/commit/9749be2685a56df789f393071d7ec1ead93f6091) · [Final report and evidence](docs/final-report.md) · [Presentation and live demo](docs/final-demo.md)
 
 ## Prerequisites
 
@@ -12,9 +12,11 @@ The published rehearsal used `005aef6`. The independent final audit records the 
 - Tesseract 5 with English (`eng`) trained data for scanned PDFs and images. Run `tesseract --version` and `tesseract --list-langs`. The Windows rehearsal used UB Mannheim 5.4.0.20240606. [Tesseract installation guide](https://tesseract-ocr.github.io/tessdoc/Installation.html) · [Windows installer](https://github.com/UB-Mannheim/tesseract/releases/tag/v5.4.0.20240606)
 - Chromium for the browser tests. Install it separately with the project-local Playwright command in [Verification](#verification).
 
+Phase 6 locks Next.js 16.4.6, React 19.3.1, FastAPI 0.165.0, Pillow 13.0.0, and Playwright 1.65.1. [Dependency versions and credits](docs/attribution.md#runtime-dependencies)
+
 ### Set up Tesseract OCR
 
-On Ubuntu 24.04, the hosted checks install Tesseract with the following packages.
+The Phase 6 hosted run used Tesseract 5.3.4. On Ubuntu 24.04, CI installs it and the English data with the following packages.
 
 ```sh
 sudo apt-get update
@@ -74,13 +76,13 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The browser suite starts the production web app on port 3131 and the real API on 8131, with an isolated SQLite file. Set `RAYRIDE_CAPTURE_EVIDENCE=1` before `npm run test:e2e` to recreate the report captures. The Windows and hosted Ubuntu runs each passed 70 API, 8 frontend unit and 12 Chromium tests. The OCR scores are recorded separately by corpus and environment. [Requirements matrix and reproduction details](docs/phase4-verification.md) · [CI workflow](.github/workflows/ci.yml)
+The browser suite starts the production web app on port 3131 and the real API on 8131, with an isolated SQLite file. Set `RAYRIDE_CAPTURE_EVIDENCE=1` before `npm run test:e2e` to capture the report screens. The 24 November 2026 hosted Ubuntu run for `9749be2` passed **72 API tests with real OCR, 8 frontend unit tests, and 13 Chromium tests**, as well as contract, lint, type, build, and service smoke checks. [Phase 6 CI run](https://github.com/ThaferAbo/RayRide/actions/runs/45430637548) · [CI workflow](.github/workflows/ci.yml)
 
-For the three-engine local run, install `chromium firefox webkit` with Playwright and use `npm run test:e2e -- --browser=all --workers=2`. Ubuntu may need Playwright system dependencies. The audit records two crashes in the pinned Firefox runner and the supplemental scans that completed. Evaluate the separate audit corpus with `uv run --locked python -m scripts.evaluate_tickets --corpus final-qa` from `api/`. [Final QA setup and results](docs/final-qa.md)
+The Phase 6 QA fixes clear the previous draft when a replacement is selected and read `ARRIVAL ETA` as time evidence. The independent QA run also verified concurrent saves and retrieval after an API restart. For a local three-engine run, install `chromium firefox webkit` with Playwright and use `npm run test:e2e -- --browser=all --workers=2`. Ubuntu may need Playwright system dependencies. Hosted Chromium results, local browser findings, and OCR scores by corpus and environment are recorded in the audit. [Final QA setup and results](docs/final-qa.md) · [Historical Phase 4 requirements matrix and results](docs/phase4-verification.md)
 
 ## Scope and handoff
 
-- CSE491 lives in [`frontend/`](frontend/) and [`api/`](api/). Both [synthetic ticket corpora](samples/README.md) have separate field labels and reproducible generators.
+- CSE491 lives in [`frontend/`](frontend/) and [`api/`](api/). The original, Phase 4 expansion, and final QA [synthetic ticket sets](samples/README.md) each have separate field labels and reproducible generators.
 - Use fictional or anonymized tickets. Suggestions can be uncertain or incomplete, especially with small or angled text and ambiguous layouts. Local SQLite holds only reviewed flight and simulated reservation details. The app is a loopback-only prototype with reference-based lookup and no real booking, payment or dispatch.
 - See the [architecture and database diagrams](docs/architecture.md), [REST API guide](docs/api.md), [attribution and team evidence](docs/attribution.md), and [proposed CSE492 roadmap](docs/cse492-roadmap.md). Keep local settings, credentials, databases, and personal files out of Git.
 

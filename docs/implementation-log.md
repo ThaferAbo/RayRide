@@ -111,10 +111,10 @@ The Phase 3 working tree was tested on Windows with Tesseract 5.4 and Chromium t
 - Fixed a confirmed false arrival airport in flattened departure/arrival columns. Added extraction for terminal suffixes on explicitly labeled arrival airports. Both fixes have parser and HTTP regression coverage.
 - Fixed lost keyboard focus when returning to upload and silent acceptance of the first of multiple dropped files. Booking now validates calendar dates before submission and confirmation pages prevent referrer disclosure.
 - Verified SQLite rollback after a real database rejection, retry after failure, and retrieval and idempotent replay across two Uvicorn processes. Verified that real OCR leaves no scratch files or reservation rows and omits the upload filename and passenger marker from the response and captured logs.
-- Ran the local gate on 24 November 2026. **70 API tests, 8 frontend unit tests and 12 Chromium tests passed.** The five required workflows saved simulated reservations. Keyboard, reflow, and automated accessibility checks passed in the tested pages. Hosted CI passed on `be528b8`, the published Phase 3 baseline. Hosted execution of the Phase 4 worktree is pending. [Acceptance evidence and screenshots](phase4-verification.md) · [Phase 3 hosted CI](https://github.com/ThaferAbo/RayRide/actions/runs/45390325875)
+- Ran the local gate on 24 November 2026. **70 API tests, 8 frontend unit tests and 12 Chromium tests passed.** The five required workflows saved simulated reservations. Keyboard, reflow, and automated accessibility checks passed in the tested pages. Hosted CI passed on `be528b8`, the published Phase 3 baseline. The Phase 5 entry records the later Phase 4 hosted result. [Acceptance evidence and screenshots](phase4-verification.md) · [Phase 3 hosted CI](https://github.com/ThaferAbo/RayRide/actions/runs/45390325875)
 - The original corpus and labels are unchanged and reproduced at **21/27**. The seven independently labeled expansion fixtures scored **14/20**. Neither run returned a confidently wrong labeled value. Both scores are before manual correction. [Original benchmark](evidence/phase4/ocr-original.json) · [Expansion benchmark](evidence/phase4/ocr-expansion.json)
 
-**The local Phase 4 gate passed.** The traceability matrix marks pilot usability and second-machine reproduction open. No human results or Phase 4 hosted results were recorded. [Manual protocols](phase4-manual-protocols.md)
+**The local Phase 4 gate passed.** The traceability matrix marks pilot usability and second-machine reproduction open. [Manual protocols](phase4-manual-protocols.md)
 
 ## Phase 5 report and handoff
 
@@ -123,11 +123,17 @@ The Phase 3 working tree was tested on Windows with Tesseract 5.4 and Chromium t
 - Checked the documentation links and diagrams. Live OpenAPI matched the checked-in contract, all eight diagram columns matched the SQLite model, and Git hashes confirmed that the fixture corpora and saved evidence were intact. [Technical design](architecture.md) · [REST API](api.md)
 - Finished the handoff documentation and presentation outline. The Git record supports commit attribution to `Thaelith`. Named individual contributions still need team confirmation. NFR-2 and NFR-5 remain open, and the team handles submission and presentation. [Final report](final-report.md) · [Attribution](attribution.md) · [CSE492 roadmap](cse492-roadmap.md)
 
-## Independent final QA
+## Phase 6 independent final QA
 
 - Cloned `23c4fb1` into Ubuntu 26.04.1 on WSL 2 and installed locked dependencies with local caches and fresh databases. After the fixes, **72 API tests with real OCR** and **8 frontend unit tests** passed. Chromium and WebKit each passed 13 browser tests. Firefox passed 11 in the pinned runner and crashed in two combined accessibility checks. Separate axe scans passed four states on Firefox browser revision 1578. [QA results and screenshots](final-qa.md)
 - Fixed stale booking details after a rejected replacement, corrected the parser's ETA-as-airport result, and moved Pillow from 12.3.0 to 13.0.0. Runtime advisory checks reported zero findings after the upgrade. The two preserved corpora produced identical per-ticket results before and after. The five independently labeled audit images reduced confident fills on unlabeled fields from one to zero. [Findings](final-qa.md#findings-and-fixes) · [OCR results](final-qa.md#independent-ocr-probes)
 - Verified concurrent same-key and distinct-key saves, retrieval and replay after restart, and ordinary origin, validation and cache controls. NFR-2 and NFR-5 remain open. [Manual protocols](phase4-manual-protocols.md)
+
+## Published Phase 6 release verification
+
+- The 24 November 2026 Ubuntu 24.04 run for `9749be2` passed **72 API tests with real OCR, 8 frontend unit tests, and 13 Chromium tests**. The contract, lint, formatting, typecheck, production build, and API/web smoke checks passed. It used uv 0.11.24, Pillow 13.0.0, and Tesseract 5.3.4 with English data. [Phase 6 CI logs](https://github.com/ThaferAbo/RayRide/actions/runs/45430637548/job/138574659791)
+- Phase 6 hosted OCR scored **22/27** on the original corpus and **15/20** on the Phase 4 expansion, matching the Phase 4 hosted totals. The Phase 4 Windows results and the separate WSL QA scores remain in their original evidence files. [OCR summary](final-report.md#extraction-before-review)
+- The release documentation identifies `9749be2` as the local demo revision. NFR-2, NFR-5, individual contribution confirmation, and the two pinned Firefox test failures remain open. This update used existing test evidence. [Release status](final-report.md#limits-and-handoff) · [AI assistance and contributions](attribution.md)
 
 ## Legacy Flutter baseline
 

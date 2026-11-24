@@ -1,6 +1,6 @@
 # Proposed CSE492 work
 
-Use `005aef6` as the CSE491 behavior baseline. The roadmap is a proposal for the next semester. The order gives the team a small, testable release even if integrations take longer than expected.
+Use the published Phase 6 revision `9749be2` as the CSE491 behavior baseline. The proposed order gives the team a small, testable release even if integrations take longer than expected. [Release status and open items](final-report.md#limits-and-handoff)
 
 | Order | Proposed work | Evidence to collect before moving on |
 | --- | --- | --- |

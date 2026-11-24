@@ -2,7 +2,7 @@
 
 **24 November 2026 · CSE491 Group 4**
 
-The audit started from a clean checkout of `23c4fb1a8502cef5fb40b27c250b16047ba2834d`. Results below distinguish the published baseline from the audit fixes in the local worktree. All tickets and bookings used here were fictional.
+The audit started from a clean checkout of the Phase 5 baseline `23c4fb1a8502cef5fb40b27c250b16047ba2834d`. The fixes and audit evidence were published in Phase 6 at `9749be2685a56df789f393071d7ec1ead93f6091`. The local measurements below were collected before publication. All tickets and bookings were fictional. [Published revision](https://github.com/ThaferAbo/RayRide/commit/9749be2685a56df789f393071d7ec1ead93f6091)
 
 ## Clean environment
 
@@ -14,7 +14,7 @@ The audit started from a clean checkout of `23c4fb1a8502cef5fb40b27c250b16047ba2
 | OCR and browsers | Freshly extracted Ubuntu packages supplied Tesseract 5.5.0, `eng`, and browser system libraries inside the audit directory. The system package database was left intact. Playwright 1.65.1 installed its own browsers. |
 | Application | Production Next.js on `127.0.0.1:3185` and FastAPI on `127.0.0.1:8185` for exploratory checks, with a fresh SQLite file. The Playwright suite used separate services on 3131/8131 and separate databases. |
 
-The clean locked installs, contract checks, API lint/format checks, web lint/typecheck and production build succeeded. The baseline ran **70 API tests with real OCR required** and **8 frontend unit tests**. WSL is on the original physical machine. [Base setup instructions](../README.md#run-the-cse491-prototype) · [Manual verification protocols](phase4-manual-protocols.md)
+The clean locked installs, contract checks, API lint/format checks, web lint/typecheck and production build succeeded. The initial Phase 5 baseline ran **70 API tests with real OCR required** and **8 frontend unit tests**. WSL is on the original physical machine. [Base setup instructions](../README.md#run-the-cse491-prototype) · [Manual verification protocols](phase4-manual-protocols.md)
 
 ## Findings and fixes
 
@@ -32,8 +32,9 @@ The automated suite also exercises text PDF, scanned PDF, JPEG, ambiguous-ticket
 
 ## Browser and automated results
 
-| Environment | Observed result on the audit worktree |
+| Environment | Observed result |
 | --- | --- |
+| Hosted Ubuntu 24.04 CI at `9749be2` | **72 API tests with real OCR, 8 frontend unit tests, and 13 Chromium tests passed.** Both preserved OCR evaluations and the API/web smoke checks passed. The runner used Node 24.22.3, npm 11.19.1, Python 3.11.15, uv 0.11.24, Tesseract 5.3.4 with English data, Pillow 13.0.0, and Chromium 159.0.8154.6. [Phase 6 CI logs](https://github.com/ThaferAbo/RayRide/actions/runs/45430637548/job/138574659791) |
 | Chromium 159.0.8154.6 in WSL | **13/13 passed**, including all five booking paths, keyboard focus, reflow and axe scans in the tested states. |
 | WebKit 27.2 in WSL | **13/13 passed** after the temporary library-path correction. This tested the WebKit engine with emulated widths. |
 | Firefox 159.0 in WSL | **11/13 passed**, including all five booking paths, replacement-ticket recovery and keyboard navigation. The two acceptance tests that include axe scanning ended with browser content-process crashes. |
@@ -41,7 +42,12 @@ The automated suite also exercises text PDF, scanned PDF, JPEG, ambiguous-ticket
 | Firefox 159.0, Playwright browser revision 1578 in WSL | Direct axe scans in fresh pages found zero violations in all four states. A separate run exercised reflow at 320, 390, 768 and 1280 px on upload, review and reopened confirmation. |
 | API and checks | **72 API tests passed with real OCR required**. Ruff lint and formatting and the OpenAPI check passed. The web contract check and **8 frontend unit tests** passed. Web lint, typecheck and the production build passed after the booking fix. |
 
-The Chromium and WebKit suite reported no axe violations on upload, ambiguous review, confirmation and unreadable-ticket fallback. The supplemental Firefox run used the same WCAG tags, injecting the locked axe script and calling `axe.run` directly in separate pages. It passed those four states. The pinned Firefox runner still has two failed combined tests, and the audit did not establish the cause of those content-process crashes.
+The local Chromium and WebKit suites reported no axe violations on upload, ambiguous review, confirmation, and unreadable-ticket fallback. Supplemental Firefox scans used the same WCAG tags with `axe.run` in separate pages and passed those four states. Two tests in the pinned Firefox runner remain **open**. The audit did not establish the cause of their content-process crashes. Hosted CI exercised Chromium.
+
+- `report evidence and accessibility on upload, review and persisted confirmation`
+- `report evidence and accessibility on unreadable ticket fallback`
+
+[Acceptance test source](../frontend/tests/e2e/acceptance.spec.ts)
 
 ## Live isolation, privacy and concurrent writes
 
@@ -70,7 +76,7 @@ Five new synthetic images cover overnight arrival, 90-degree rotation, low-resol
 
 Both runs extracted **8/18** labeled fields, with five missing and five uncertain. There were no confidently wrong predictions on labeled fields. The baseline confidently filled **1/2** fields without a gold value. The fixed run filled **0/2**. Rotation left all four fields missing, and the low-resolution JPEG yielded only the time. The overnight panel kept the next day's arrival date and time. The UTC-only clock did not yield a local time. [Before JSON](evidence/final-qa/ocr-before.json) · [After JSON](evidence/final-qa/ocr-after.json)
 
-The paired WSL runs returned identical per-ticket outputs for the original corpus (22/27) and the Phase 4 expansion (15/20). The five audit fixtures also regenerated byte for byte with Pillow 13. [Preserved benchmark records](phase4-verification.md#extraction-before-correction) · [Audit fixture generator](../api/scripts/build_final_qa_samples.py)
+The paired WSL runs returned identical per-ticket outputs before and after the fixes for the original corpus (22/27) and the Phase 4 expansion (15/20). The five audit fixtures also regenerated byte for byte with Pillow 13. Hosted CI for `9749be2` reported 22/27 (81.5%) and 15/20 (75.0%) for those preserved corpora, matching the Phase 4 hosted totals. The five-image QA scores above are from WSL. [Historical benchmark records](phase4-verification.md#extraction-before-correction) · [Phase 6 CI logs](https://github.com/ThaferAbo/RayRide/actions/runs/45430637548/job/138574659791)
 
 To repeat the separate evaluation from `api/`, use `uv run --locked python -m scripts.evaluate_tickets --corpus final-qa`. To regenerate its images, use `uv run --locked python -m scripts.build_final_qa_samples`. An `extracted` exact match counts as correct. Missing and uncertain fields count as misses. Fields without a gold value are tallied separately.
 
@@ -84,7 +90,7 @@ To repeat the separate evaluation from `api/`, use `uv run --locked python -m sc
 
 ## Reproducible checks
 
-Start from the revision above and apply the audit worktree changes, including the new fixture images. The [README](../README.md#prerequisites) documents the normal setup. The Linux setup here used `apt-get download` and `dpkg-deb -x` for browser libraries and Tesseract because passwordless sudo was unavailable. WebKit's temporary launcher preserved the audit library path, and Playwright's system-cache preflight was disabled for that isolated launch. WebKit then loaded and exercised the app with those libraries.
+Start from the published Phase 6 revision `9749be2`, which includes the fixes and new fixture images. The [README](../README.md#prerequisites) documents the normal setup. The Linux audit used `apt-get download` and `dpkg-deb -x` for browser libraries and Tesseract because passwordless sudo was unavailable. WebKit's temporary launcher preserved the audit library path, and Playwright's system-cache preflight was disabled for that isolated launch. WebKit then loaded and exercised the app with those libraries.
 
 Run from `api/` in the clean clone.
 
@@ -118,8 +124,10 @@ Use `RAYRIDE_CAPTURE_EVIDENCE=1` for the existing report captures. The dependenc
 
 - **NFR-2 is open.** The exploratory sessions were AI-assisted and the automated accessibility scans cover selected states. The team still needs 2–3 unaided pilot observations. Screen-reader use has yet to be checked.
 - **NFR-5 is open.** A locked install and live rehearsal on WSL verify a clean environment on the original host. Setup on a separate physical machine remains to be recorded.
+- **Individual contribution confirmation is open.** The team still needs to confirm named contributions against artifacts or records. [Contribution evidence](attribution.md#team-contributions)
+- **Two pinned Firefox failures are open.** The supplemental scans provide evidence for the tested states. [Browser results](#browser-and-automated-results)
 - The prototype accepts fictional or anonymized tickets for simulated local booking. OCR can miss rotated, low-resolution, cropped or ambiguous fields. Review is required before saving.
 
 [Pilot and second-machine protocols](phase4-manual-protocols.md)
 
-**Release readiness.** The audited worktree is ready for a local academic demo using Chromium or WebKit. The Firefox booking workflows and supplemental accessibility scans passed. Two combined acceptance tests still fail in the pinned Firefox runner. The fixes are local working-tree changes. The prior release evidence remains available in the [final report](final-report.md).
+**Release readiness.** The published Phase 6 revision is ready for a local simulated demo in Chromium. The separate WSL audit also passed the WebKit suite. The four open items above remain part of the handoff. [Release summary](final-report.md#limits-and-handoff)

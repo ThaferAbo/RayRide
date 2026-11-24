@@ -2,6 +2,8 @@
 
 **Local run on 24 November 2026.** The checkout was based on `be528b8` with the Phase 4 working-tree changes. The test machine ran Windows 11 Pro, Python 3.11.15, uv 0.11.24, Node 24.14.0, npm 11.9.0, and Tesseract 5.4.0.20240606 with English data. The browser tests used Playwright 1.65.1 and Chromium. All reservations and tickets used in the evidence are fictional.
 
+This page preserves the Phase 4 measurements. The published Phase 6 revision `9749be2` and its latest hosted results are recorded separately. [Phase 6 final report](final-report.md#acceptance-evidence)
+
 ## Requirements traceability
 
 | ID | Requirement | Result | Evidence and limits |
