@@ -1,0 +1,2 @@
+# openapi-typescript compares the generated file byte for byte.
+frontend/lib/api.types.ts text eol=lf
