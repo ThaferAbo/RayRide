@@ -116,6 +116,13 @@ The Phase 3 working tree was tested on Windows with Tesseract 5.4 and Chromium t
 
 **The local Phase 4 gate passed.** The traceability matrix marks pilot usability and second-machine reproduction open. No human results or Phase 4 hosted results were recorded. [Manual protocols](phase4-manual-protocols.md)
 
+## Phase 5 report and handoff
+
+- Verified hosted Ubuntu CI for published prototype `005aef6`. It passed 70 API, 8 frontend unit and 12 Chromium tests, both corpus evaluations and the two-service smoke check. Hosted scores were **22/27** for the original and **15/20** for the expansion. The Windows benchmark files retain **21/27** and **14/20**. [Hosted run](https://github.com/ThaferAbo/RayRide/actions/runs/45394288030) · [Acceptance evidence](phase4-verification.md)
+- Built the exact prototype with `npm run build`, started it with `npm start` and ran the local API with `uv run --offline --locked uvicorn app.main:app --host 127.0.0.1 --port 8000`. With external browser requests blocked and a fresh SQLite file, the scanned-ticket save and lookup and unreadable-ticket manual fallback passed. [Rehearsal record](final-demo.md#rehearsal-record)
+- Checked the documentation links and diagrams. Live OpenAPI matched the checked-in contract, all eight diagram columns matched the SQLite model, and Git hashes confirmed that the fixture corpora and saved evidence were intact. [Technical design](architecture.md) · [REST API](api.md)
+- Finished the handoff documentation and presentation outline. The Git record supports commit attribution to `Thaelith`. Named individual contributions still need team confirmation. NFR-2 and NFR-5 remain open, and the team handles submission and presentation. [Final report](final-report.md) · [Attribution](attribution.md) · [CSE492 roadmap](cse492-roadmap.md)
+
 ## Legacy Flutter baseline
 
 Phase 0 ran `flutter test --no-pub --reporter expanded` in a temporary copy against the installed Flutter cache. The only Flutter widget test failed at `test/widget_test.dart:19` because it expected a starter counter with text `0`. Dart analysis exited 0 with 24 deprecation notices, and the cached Flutter web build succeeded. The cached package graph differed from `pubspec.lock`. Phase 1 preserves the Flutter and local .NET applications and uses separate Node and Python checks.
