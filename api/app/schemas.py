@@ -14,15 +14,15 @@ from pydantic import (
     field_validator,
 )
 
-FlightNumber = Annotated[
-    str, StringConstraints(pattern=r"^(?:[A-Z][A-Z0-9]|[0-9][A-Z])[0-9]{1,4}[A-Z]?$")
-]
+FLIGHT_NUMBER_PATTERN = r"^(?:[A-Z][A-Z0-9]|[0-9][A-Z])[0-9]{1,4}[A-Z]?$"
+FlightNumber = Annotated[str, StringConstraints(pattern=FLIGHT_NUMBER_PATTERN)]
 AirportCode = Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")]
 Destination = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
 ]
 Reference = Annotated[str, StringConstraints(pattern=r"^RR-[A-Z0-9]{12}$")]
 TicketMediaType = Literal["application/pdf", "image/png", "image/jpeg"]
+ExtractionMethod = Literal["pdf_text", "ocr", "mixed", "unavailable"]
 
 _LOCAL_TIME_PATTERN = (
     r"^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\.[0-9]{1,6})?)?$"
@@ -86,6 +86,20 @@ class ErrorResponse(BaseModel):
     detail: ErrorDetail
 
 
+class TicketErrorDetail(BaseModel):
+    code: Literal[
+        "invalid_upload",
+        "upload_too_large",
+        "unsupported_ticket_type",
+        "invalid_ticket",
+    ]
+    message: str
+
+
+class TicketErrorResponse(BaseModel):
+    detail: TicketErrorDetail
+
+
 Value = TypeVar("Value")
 
 
@@ -105,9 +119,9 @@ class Missing(BaseModel):
 
 
 class ExtractionResult(BaseModel):
-    """Planned extraction response. All times are local to the arrival airport."""
+    """Editable ticket suggestions. All times are local to the arrival airport."""
 
-    method: Literal["pdf_text", "ocr", "mixed", "unavailable"]
+    method: ExtractionMethod
     flight_number: Extracted[FlightNumber] | Uncertain[FlightNumber] | Missing = Field(
         discriminator="status"
     )

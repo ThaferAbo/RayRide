@@ -1,2 +1,7 @@
 # openapi-typescript compares the generated file byte for byte.
 frontend/lib/api.types.ts text eol=lf
+
+# Preserve the exact bytes used by the extraction corpus on every platform.
+samples/*.pdf binary
+samples/*.png binary
+samples/*.jpeg binary

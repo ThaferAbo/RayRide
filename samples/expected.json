@@ -1,0 +1,42 @@
+{
+  "text-ticket.pdf": {
+    "method": "pdf_text",
+    "values": {"flight_number": "ZZ731", "arrival_airport": "AYT", "arrival_date": "2026-12-03", "arrival_local_time": "14:10:00"},
+    "uncertain": [], "missing": []
+  },
+  "scanned-ticket.pdf": {
+    "method": "ocr",
+    "values": {"flight_number": "ZZ731", "arrival_airport": "AYT", "arrival_date": "2026-12-03", "arrival_local_time": "14:10:00"},
+    "uncertain": [], "missing": []
+  },
+  "image-ticket.png": {
+    "method": "ocr",
+    "values": {"flight_number": "QX482", "arrival_airport": "FRA", "arrival_date": "2026-12-08", "arrival_local_time": "10:40:00"},
+    "uncertain": [], "missing": []
+  },
+  "image-ticket.jpeg": {
+    "method": "ocr",
+    "values": {"flight_number": "6E318", "arrival_airport": "AMS", "arrival_date": "2026-12-09", "arrival_local_time": "08:05:00"},
+    "uncertain": [], "missing": []
+  },
+  "ambiguous-ticket.pdf": {
+    "method": "pdf_text",
+    "values": {"flight_number": null, "arrival_airport": null, "arrival_date": "2026-12-10", "arrival_local_time": null},
+    "uncertain": ["flight_number", "arrival_airport", "arrival_date", "arrival_local_time"], "missing": []
+  },
+  "missing-fields.pdf": {
+    "method": "mixed",
+    "values": {"flight_number": "ZZ154", "arrival_airport": "AYT", "arrival_date": null, "arrival_local_time": null},
+    "uncertain": [], "missing": ["arrival_date", "arrival_local_time"]
+  },
+  "mixed-ticket.pdf": {
+    "method": "mixed",
+    "values": {"flight_number": "WN210", "arrival_airport": "MAD", "arrival_date": "2026-12-14", "arrival_local_time": "18:45:00"},
+    "uncertain": [], "missing": []
+  },
+  "unreadable-ticket.png": {
+    "method": "unavailable",
+    "values": {"flight_number": "ZZ969", "arrival_airport": "FCO", "arrival_date": "2026-12-19", "arrival_local_time": "21:20:00"},
+    "uncertain": [], "missing": ["flight_number", "arrival_airport", "arrival_date", "arrival_local_time"]
+  }
+}

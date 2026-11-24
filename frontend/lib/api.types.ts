@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/tickets/extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extract flight suggestions from a PDF, PNG, or JPEG ticket
+         * @description Returns editable suggestions. OCR failures and unreadable fields can be entered manually.
+         */
+        post: operations["extract_ticket_api_v1_tickets_extract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -69,7 +89,7 @@ export interface components {
         };
         /**
          * ExtractionResult
-         * @description Planned extraction response. All times are local to the arrival airport.
+         * @description Editable ticket suggestions. All times are local to the arrival airport.
          */
         ExtractionResult: {
             /** Arrival Airport */
@@ -176,6 +196,20 @@ export interface components {
              */
             status: "simulated";
         };
+        /** TicketErrorDetail */
+        TicketErrorDetail: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "invalid_upload" | "upload_too_large" | "unsupported_ticket_type" | "invalid_ticket";
+            /** Message */
+            message: string;
+        };
+        /** TicketErrorResponse */
+        TicketErrorResponse: {
+            detail: components["schemas"]["TicketErrorDetail"];
+        };
         /** Uncertain[Annotated[date, BeforeValidator]] */
         Uncertain_Annotated_date__BeforeValidator__: {
             /**
@@ -245,6 +279,69 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    extract_ticket_api_v1_tickets_extract_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    ticket: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionResult"];
+                };
+            };
+            /** @description Missing or malformed multipart file */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketErrorResponse"];
+                };
+            };
+            /** @description Upload or document exceeds a supported limit */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketErrorResponse"];
+                };
+            };
+            /** @description Unsupported or mismatched file type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketErrorResponse"];
+                };
+            };
+            /** @description Corrupt, empty, or unsupported document */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketErrorResponse"];
+                };
+            };
+        };
+    };
     health_health_get: {
         parameters: {
             query?: never;

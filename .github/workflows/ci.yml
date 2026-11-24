@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   foundation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
@@ -33,14 +33,24 @@ jobs:
           enable-cache: true
           cache-dependency-glob: api/uv.lock
 
+      - name: Install Tesseract and English language data
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          tesseract --version
+          tesseract --list-langs | grep -x eng
+
       - name: Check API and OpenAPI contract
         working-directory: api
+        env:
+          RAYRIDE_REQUIRE_OCR_TESTS: "1"
         run: |
           uv sync --locked
           uv run --locked ruff check .
           uv run --locked ruff format --check .
           uv run --locked python -m app.export_openapi --check
           uv run --locked pytest -q
+          uv run --locked python -m scripts.evaluate_tickets
 
       - name: Check web app
         working-directory: frontend
@@ -72,6 +82,8 @@ jobs:
           curl --fail --silent --show-error --retry 20 --retry-connrefused --retry-delay 1 \
             "$RAYRIDE_API_URL/health" | jq -e '.status == "ok" and .database == "ready"'
           test -s "$RAYRIDE_DATABASE_PATH"
+          curl --fail --silent --show-error --form 'ticket=@samples/scanned-ticket.pdf;type=application/pdf' \
+            "$RAYRIDE_API_URL/api/v1/tickets/extract" | jq -e '.method == "ocr" and .arrival_airport.value == "AYT"'
           curl --fail --silent --show-error --retry 20 --retry-connrefused --retry-delay 1 \
             http://127.0.0.1:3000/ > "$RUNNER_TEMP/rayride-web.html"
           grep -q 'The API responded and the database is ready.' "$RUNNER_TEMP/rayride-web.html"

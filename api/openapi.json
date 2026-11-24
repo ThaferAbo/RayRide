@@ -78,7 +78,7 @@
         "type": "object"
       },
       "ExtractionResult": {
-        "description": "Planned extraction response. All times are local to the arrival airport.",
+        "description": "Editable ticket suggestions. All times are local to the arrival airport.",
         "properties": {
           "arrival_airport": {
             "discriminator": {
@@ -351,6 +351,42 @@
         "title": "ReservationResponse",
         "type": "object"
       },
+      "TicketErrorDetail": {
+        "properties": {
+          "code": {
+            "enum": [
+              "invalid_upload",
+              "upload_too_large",
+              "unsupported_ticket_type",
+              "invalid_ticket"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "TicketErrorDetail",
+        "type": "object"
+      },
+      "TicketErrorResponse": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/TicketErrorDetail"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "TicketErrorResponse",
+        "type": "object"
+      },
       "Uncertain_Annotated_date__BeforeValidator__": {
         "properties": {
           "status": {
@@ -507,12 +543,96 @@
     }
   },
   "info": {
-    "description": "Phase 1 exposes health only. Ticket and reservation schemas describe planned contracts.",
+    "description": "Local API health and editable flight-ticket suggestions. Reservation schemas describe planned contracts.",
     "title": "RayRide CSE491 API",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/tickets/extract": {
+      "post": {
+        "description": "Returns editable suggestions. OCR failures and unreadable fields can be entered manually.",
+        "operationId": "extract_ticket_api_v1_tickets_extract_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "encoding": {
+                "ticket": {
+                  "contentType": "application/pdf, image/png, image/jpeg"
+                }
+              },
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "ticket": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "ticket"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or malformed multipart file"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketErrorResponse"
+                }
+              }
+            },
+            "description": "Upload or document exceeds a supported limit"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported or mismatched file type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketErrorResponse"
+                }
+              }
+            },
+            "description": "Corrupt, empty, or unsupported document"
+          }
+        },
+        "summary": "Extract flight suggestions from a PDF, PNG, or JPEG ticket"
+      }
+    },
     "/health": {
       "get": {
         "operationId": "health_health_get",

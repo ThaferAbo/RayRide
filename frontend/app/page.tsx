@@ -16,8 +16,8 @@ export default async function Home() {
         <div>
           <h1 className="text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">Prototype status</h1>
           <p className="mt-5 max-w-md text-base leading-7 text-muted">
-            Phase 1 connects the airport transfer prototype to its local API and database.
-            Ticket processing and simulated reservations are planned for later phases.
+            Phase 2 adds local flight-ticket extraction. This page checks the API and SQLite.
+            Ticket review and simulated reservations are planned for a later phase.
           </p>
         </div>
 

@@ -29,6 +29,46 @@ The Phase 1 local gate passed on 24 November 2026 on Windows with Node 24.14.0, 
 
 Ticket extraction, reservation behavior, and second-machine verification are later-phase work. No integrated ticket demo or OCR accuracy results were produced in Phase 1.
 
+## Phase 2 ticket intake and extraction
+
+### Implementation and decisions
+
+- `POST /api/v1/tickets/extract` accepts one PDF, PNG, or JPEG as a multipart `ticket` file. The API bounds the file, request, PDF pages, and decoded images. It checks the declared format, signature, and decoder result. Uploads stay in memory, Tesseract reads from stdin, and the endpoint writes no files, raw OCR logs, or database rows.
+- pypdfium2 reads embedded text first and renders pages for OCR when text is incomplete or unusable. Pillow validates images, OpenCV prepares grayscale contrast, and Tesseract reports English word confidence. Tesseract has an 8-second default budget across OCR pages. The PDFium work is serialized within the process because PDFium is not thread-safe. [PDFium threading documentation](https://pypdfium2.readthedocs.io/en/stable/python_api.html#incompatibility-with-threading)
+- The parser distinguishes arrival labels from departure labels, requires an unambiguous date with a year, and preserves the printed local clock time. Conflicting legs, ambiguous numeric dates, low OCR confidence, and qualified times that cannot be interpreted safely are sent for review. The endpoint returns typed partial or unavailable results for OCR failure. The web app continues to show health, and booking paths remain absent.
+- Python dependencies are locked in `api/uv.lock`. The Windows run used the checksum-verified UB Mannheim Tesseract 5.4.0.20240606 and its English trained data, configured through the ignored `api/.env`. The workflow installs the Ubuntu 24.04 Tesseract and English packages and fails if real OCR tests cannot run. Keep the relevant PDFium, Tesseract and trained-data, OpenCV, and Pillow notices if redistributing their binaries. [Windows and Ubuntu setup](../README.md#set-up-tesseract-ocr)
+
+### Observed field accuracy
+
+On 24 November 2026, `uv run --locked python -m scripts.evaluate_tickets` posted eight synthetic tickets to the real extraction endpoint. The gold values were recorded independently in `samples/expected.json`. A hit requires an `extracted` status and an exact normalized gold match. Missing and uncertain responses count as misses for known fields. The five fields without one annotated answer are excluded from that denominator and checked for unsupported confident output. No answers were manually corrected before scoring. [Corpus and reproduction](../samples/README.md)
+
+| Fixture | Observed method | Correct / labeled | Observed issue |
+| --- | --- | ---: | --- |
+| Text PDF | `pdf_text` | 4 / 4 | All four fields matched. |
+| Same ticket as a scanned PDF | `ocr` | 4 / 4 | All four fields matched. |
+| PNG | `ocr` | 3 / 4 | Tesseract read `QX` as `OX` with low confidence. The API withheld the flight number and flagged it. |
+| JPEG | `ocr` | 4 / 4 | All four fields matched. |
+| Ambiguous two-leg PDF | `pdf_text` | 0 / 1 | All fields were flagged. The shared date was available only as uncertain. The other three fields have no single gold value. |
+| PDF with missing arrival fields | `mixed` | 2 / 2 | Arrival date and time were flagged as missing. The parser ignored the departure date and time. |
+| Mixed text and raster PDF | `mixed` | 4 / 4 | Both sources contributed the needed fields. |
+| Degraded PNG | `unavailable` | 0 / 4 | All four known source fields were flagged as missing. |
+| **Total** | | **21 / 27 (77.8%)** | **0 confidently wrong, 2 uncertain and 4 missing among labeled fields. No confident values for the five unlabeled fields.** |
+
+Results describe this small English-language synthetic corpus and Windows OCR build. Unlabeled tables, different languages, and complex schedules may need manual entry. The parser does not verify airports or flights against a live database or infer time zones.
+
+### Verification and gate
+
+| Check | Observed result |
+| --- | --- |
+| `uv sync --locked` | Installed and verified the API environment. |
+| API Ruff lint and format, OpenAPI export check, and `uv run --locked pytest -q` with `RAYRIDE_REQUIRE_OCR_TESTS=1` | Passed. 49 tests passed, including seven real Tesseract cases. Coverage includes format and size rejection, departure/arrival ambiguity, OCR timeout, recoverable process failure, and upload privacy. |
+| Sample generation and rendering | Recreated all eight binary samples byte for byte on Windows. Rendered and visually inspected all six PDF pages with Poppler. |
+| Frontend contract generation and check, `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` | Passed. Three frontend tests passed. |
+| Live Uvicorn and Next.js smoke checks | Health and frontend readiness passed. Real chunked uploads of PDFs, PNG, and JPEG returned the expected methods and field statuses. An unsupported upload returned 415. Live OpenAPI matched the generated contract. |
+| Workflow and Git checks | `actionlint` and Git whitespace checks passed. Hosted CI execution is pending. Legacy Flutter and local .NET paths were preserved. |
+
+**Phase 2 local gate passed.** The API accepts and validates supported files, preserves usable suggestions when OCR fails, and returns explicit missing or uncertain fields. Traveler review, reservation creation and retrieval, and end-to-end workflow acceptance remain later-phase work.
+
 ## Legacy Flutter baseline
 
 Phase 0 ran `flutter test --no-pub --reporter expanded` in a temporary copy against the installed Flutter cache. The only Flutter widget test failed at `test/widget_test.dart:19` because it expected a starter counter with text `0`. Dart analysis exited 0 with 24 deprecation notices, and the cached Flutter web build succeeded. The cached package graph differed from `pubspec.lock`. Phase 1 preserves the Flutter and local .NET applications and uses separate Node and Python checks.
