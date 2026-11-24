@@ -1,18 +1,19 @@
 import { ArrowRightIcon, FileTextIcon, PencilSimpleIcon, UploadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
-export function TicketStep({ file, pending, error, onPick, onExtract, onManual }: {
+export function TicketStep({ file, pending, error, onPick, onReject, onExtract, onManual }: {
   file: File | null;
   pending: boolean;
   error: string;
   onPick: (file: File) => void;
+  onReject: (message: string) => void;
   onExtract: () => void;
   onManual: () => void;
 }) {
   const [dragging, setDragging] = useState(false);
   return (
-    <section className="panel" aria-labelledby="ticket-title" aria-busy={pending}>
-      <h2 className="panel-title" id="ticket-title">Upload your flight ticket</h2>
+    <section className="panel" aria-labelledby="ticket-title">
+      <h2 className="panel-title" id="ticket-title" tabIndex={-1}>Upload your flight ticket</h2>
       <p className="panel-intro">We’ll look for your flight number and arrival details.</p>
       <div className="dropzone" data-dragging={dragging}
         onDragOver={(event) => { event.preventDefault(); if (!pending) setDragging(true); }}
@@ -20,8 +21,10 @@ export function TicketStep({ file, pending, error, onPick, onExtract, onManual }
         onDrop={(event) => {
           event.preventDefault();
           setDragging(false);
-          const dropped = event.dataTransfer.files[0];
-          if (dropped && !pending) onPick(dropped);
+          if (pending) return;
+          const files = event.dataTransfer.files;
+          if (files.length > 1) onReject("Drop one ticket at a time.");
+          else if (files[0]) onPick(files[0]);
         }}>
         <span className="upload-icon" aria-hidden="true">
           {file ? <FileTextIcon size={24} /> : <UploadSimpleIcon size={24} />}

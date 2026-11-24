@@ -50,13 +50,21 @@ export function normalizedTrip(draft: TripDraft): TripDraft {
   };
 }
 
+function isCalendarDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const monthLengths = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return year > 0 && month >= 1 && month <= 12 && day >= 1 && day <= monthLengths[month - 1];
+}
+
 export function validateTrip(trip: TripDraft, reviewed: boolean): FieldErrors {
   const errors: FieldErrors = {};
   if (!/^(?:[A-Z][A-Z0-9]|[0-9][A-Z])\d{1,4}[A-Z]?$/.test(trip.flight_number)) {
     errors.flight_number = "Enter a flight number such as ZZ731.";
   }
   if (!/^[A-Z]{3}$/.test(trip.arrival_airport)) errors.arrival_airport = "Enter a three-letter airport code.";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trip.arrival_date)) errors.arrival_date = "Enter an arrival date.";
+  if (!isCalendarDate(trip.arrival_date)) errors.arrival_date = "Enter a valid arrival date.";
   if (!/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,6})?)?$/.test(trip.arrival_local_time)) {
     errors.arrival_local_time = "Enter a local 24-hour time such as 14:10.";
   }

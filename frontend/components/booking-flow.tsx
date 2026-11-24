@@ -51,10 +51,14 @@ export function BookingFlow() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const active = useRef<AbortController | null>(null);
   const attempt = useRef<{ payload: string; key: string } | null>(null);
+  const lastStep = useRef(step);
 
   useEffect(() => () => { active.current?.abort(); }, []);
   useEffect(() => {
-    if (step === 2) document.getElementById("review-title")?.focus();
+    if (step !== lastStep.current) {
+      lastStep.current = step;
+      document.getElementById(step === 1 ? "ticket-title" : "review-title")?.focus();
+    }
   }, [step]);
 
   function pickFile(next: File) {
@@ -167,7 +171,8 @@ export function BookingFlow() {
       <div className="booking-grid">
         {step === 1 ? (
           <TicketStep file={file} pending={pending === "ticket"} error={failure}
-            onPick={pickFile} onExtract={extract} onManual={() => openReview(null)} />
+            onPick={pickFile} onReject={(message) => { setFile(null); setFailure(message); }}
+            onExtract={extract} onManual={() => openReview(null)} />
         ) : (
           <ReviewStep trip={trip} source={source} reviewed={reviewed} errors={errors} failure={failure}
             pending={pending === "save"} onChange={changeField} onSubmit={save}

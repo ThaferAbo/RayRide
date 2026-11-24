@@ -19,6 +19,9 @@ from app.ticket_upload import MAX_REQUEST_BYTES, MAX_TICKET_BYTES
 
 SAMPLES = Path(__file__).resolve().parents[2] / "samples"
 EXPECTED = json.loads((SAMPLES / "expected.json").read_text(encoding="utf-8"))
+PHASE4_EXPECTED = json.loads(
+    (SAMPLES / "phase4" / "expected.json").read_text(encoding="utf-8")
+)
 MEDIA_TYPES = {".pdf": "application/pdf", ".png": "image/png", ".jpeg": "image/jpeg"}
 ENDPOINT = "/api/v1/tickets/extract"
 
@@ -106,6 +109,36 @@ def test_embedded_pdf_and_ambiguous_legs_work_without_ocr(client, name):
 def test_real_ocr_ticket_fixtures(client, ocr_executable, name):
     with client(tesseract_executable=ocr_executable) as app:
         _assert_fixture(_post_sample(app, name), name)
+
+
+@pytest.mark.ocr
+@pytest.mark.parametrize(
+    "filename", ["parallel-columns.pdf", "clock-qualifiers.pdf", "codeshare.pdf"]
+)
+def test_expanded_ambiguous_layouts_never_supply_unverified_values(
+    client, ocr_executable, filename
+):
+    with client(tesseract_executable=ocr_executable) as app:
+        response = _post_sample(app, f"phase4/{filename}")
+    assert response.status_code == 200
+    observed = response.json()
+    for field in PHASE4_EXPECTED[filename]["review"]:
+        assert observed[field]["status"] == "uncertain", (
+            filename,
+            field,
+            observed[field],
+        )
+        assert observed[field]["value"] == PHASE4_EXPECTED[filename]["values"][field]
+
+
+def test_expanded_arrival_column_with_terminal_uses_only_embedded_text(client):
+    with client(tesseract_executable="rayride-nonexistent-ocr") as app:
+        response = _post_sample(app, "phase4/terminal-layout.pdf")
+    assert response.status_code == 200
+    observed = response.json()
+    assert observed["method"] == "pdf_text"
+    for field, expected in PHASE4_EXPECTED["terminal-layout.pdf"]["values"].items():
+        assert observed[field] == {"status": "extracted", "value": expected}
 
 
 @pytest.mark.ocr
@@ -293,6 +326,35 @@ def test_request_does_not_spool_store_or_log_uploads(
         assert "private-filename" not in response.text + caplog.text
         assert "Fictional flight ticket" not in response.text + caplog.text
         assert set(tmp_path.iterdir()) == names_before
+        with closing(sqlite3.connect(tmp_path / "ticket-tests.sqlite3")) as database:
+            assert database.execute("SELECT count(*) FROM reservations").fetchone() == (
+                0,
+            )
+
+
+@pytest.mark.ocr
+def test_real_ocr_leaves_no_temp_files_logs_or_reservations(
+    client, ocr_executable, tmp_path, monkeypatch, caplog
+):
+    scratch = tmp_path / "ocr-scratch"
+    scratch.mkdir()
+    for name in ("TMPDIR", "TEMP", "TMP"):
+        monkeypatch.setenv(name, str(scratch))
+    with client(tesseract_executable=ocr_executable) as app:
+        response = _post_sample(app, "phase4/cropped-ticket.png")
+        assert response.status_code == 200
+        result = response.json()
+        assert result["method"] == "ocr"
+        assert result["arrival_airport"] == {"status": "missing", "value": None}
+        assert result["arrival_local_time"] == {"status": "missing", "value": None}
+        assert set(result) == {
+            "method",
+            "warnings",
+            *PHASE4_EXPECTED["cropped-ticket.png"]["values"],
+        }
+        assert not list(scratch.iterdir())
+        assert "FICTIONAL TEST PERSON" not in response.text + caplog.text
+        assert "cropped-ticket.png" not in response.text + caplog.text
         with closing(sqlite3.connect(tmp_path / "ticket-tests.sqlite3")) as database:
             assert database.execute("SELECT count(*) FROM reservations").fetchone() == (
                 0,

@@ -8,6 +8,7 @@ RayRide is the CSE491 airport transfer reservation prototype from Group 4. Uploa
 | [`api/`](api/) | FastAPI, ticket extraction, and simulated reservations in SQLite |
 | [`samples/`](samples/) | Fictional tickets, independent field labels, and fixture generation instructions |
 | [`docs/implementation-log.md`](docs/implementation-log.md) | Decisions, verification results, and known limitations |
+| [`docs/phase4-verification.md`](docs/phase4-verification.md) | Traceability, acceptance results, and screenshots |
 | [`docs/meeting-5-demo.md`](docs/meeting-5-demo.md) | Demo setup and rehearsal checklist |
 | `lib/`, `test/`, `assets/`, and Flutter platform directories | Legacy Flutter transfer demo |
 | `Backend/` | Ignored local .NET course solution, available only on machines that already have it |
@@ -89,10 +90,11 @@ uv run --locked ruff check .
 uv run --locked ruff format --check .
 uv run --locked python -m app.export_openapi --check
 uv run --locked pytest -q
-uv run --locked python -m scripts.evaluate_tickets
+uv run --locked python -m scripts.evaluate_tickets --corpus original
+uv run --locked python -m scripts.evaluate_tickets --corpus phase4
 ```
 
-Set `RAYRIDE_REQUIRE_OCR_TESTS=1` to fail the real OCR tests if Tesseract or English data are unavailable, as CI does. In PowerShell use `$env:RAYRIDE_REQUIRE_OCR_TESTS = '1'`. The evaluation scores only the independently labeled synthetic corpus before manual correction. [Fixture details](samples/README.md)
+Set `RAYRIDE_REQUIRE_OCR_TESTS=1` to fail the real OCR tests if Tesseract or English data are unavailable, as CI does. In PowerShell use `$env:RAYRIDE_REQUIRE_OCR_TESTS = '1'`. Evaluation scores the two independently labeled synthetic corpora before any manual correction. [Fixture details](samples/README.md) · [Phase 4 results](docs/phase4-verification.md)
 
 Run the web checks from `frontend/` after `npm ci`.
 
@@ -106,7 +108,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The browser suite starts the production frontend on port 3131 and the real API on 8131 with a separate ignored SQLite file. It requires working Tesseract with English data for the scanned fixtures. The standard `npm start` serves the production build on port 3000. See the [implementation log](docs/implementation-log.md) for observed results and the [CI workflow](.github/workflows/ci.yml) for automated checks.
+The browser suite starts the production frontend on port 3131 and the real API on 8131 with a separate ignored SQLite file. It requires working Tesseract with English data for the scanned fixtures. Set `RAYRIDE_CAPTURE_EVIDENCE=1` before `npm run test:e2e` to capture the four report screenshots. The standard `npm start` serves the production build on port 3000. [Capture instructions and evidence](docs/phase4-verification.md#reproduce-and-capture) · [CI workflow](.github/workflows/ci.yml)
 
 Edit the Pydantic models in `api/app/schemas.py` when a contract changes. From `api/`, run `uv run --locked python -m app.export_openapi`. Then, from `frontend/`, run `npm run contracts:generate`. Keep both generated files, `api/openapi.json` and `frontend/lib/api.types.ts`, with the change.
 

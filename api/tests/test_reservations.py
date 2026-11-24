@@ -1,9 +1,15 @@
+import os
 import re
+import socket
 import sqlite3
+import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import closing
+from contextlib import closing, contextmanager
+from time import monotonic, sleep
 from uuid import uuid4
 
+import httpx2
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
@@ -11,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.main import create_app
 from app.schemas import REFERENCE_PATTERN
-from app.settings import Settings
+from app.settings import API_DIR, Settings
 
 PATH = "/api/v1/reservations"
 REVIEWED = {
@@ -144,3 +150,93 @@ def test_commit_failure_returns_no_confirmation_and_leaves_no_row(
 
         assert client.post(PATH, json=REVIEWED, headers=key).status_code == 201
         assert _count(settings) == 1
+
+
+def test_sqlite_rejection_rolls_back_and_allows_retry(settings):
+    key = {"Idempotency-Key": str(uuid4())}
+    with (
+        TestClient(create_app(settings)) as client,
+        closing(sqlite3.connect(settings.database_path)) as database,
+    ):
+        database.execute(
+            "CREATE TRIGGER block_reservation BEFORE INSERT ON reservations BEGIN SELECT RAISE(ABORT, 'private SQLite rejection'); END"
+        )
+        database.commit()
+        failed = client.post(PATH, json=REVIEWED, headers=key)
+        assert failed.status_code == 503
+        assert "private SQLite rejection" not in failed.text
+        assert _count(settings) == 0
+        database.execute("DROP TRIGGER block_reservation")
+        database.commit()
+        assert client.post(PATH, json=REVIEWED, headers=key).status_code == 201
+        assert _count(settings) == 1
+
+
+@contextmanager
+def _running_uvicorn(database_path):
+    with closing(socket.socket()) as reserved:
+        reserved.bind(("127.0.0.1", 0))
+        port = reserved.getsockname()[1]
+    with (
+        subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(port),
+            ],
+            cwd=API_DIR,
+            env=os.environ | {"RAYRIDE_DATABASE_PATH": str(database_path)},
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ) as process,
+        httpx2.Client(base_url=f"http://127.0.0.1:{port}", trust_env=False) as client,
+    ):
+        try:
+            deadline = monotonic() + 12
+            while monotonic() < deadline and process.poll() is None:
+                try:
+                    if (
+                        client.get("/health", timeout=0.25).status_code == 200
+                        and process.poll() is None
+                    ):
+                        break
+                except httpx2.RequestError:
+                    pass
+                sleep(0.05)
+            else:
+                pytest.fail(
+                    f"Local test API did not start (exit code {process.poll()})."
+                )
+            yield process.pid, client
+        finally:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+
+
+def test_persisted_confirmation_survives_uvicorn_process_restart(tmp_path):
+    database = tmp_path / "process-restart.sqlite3"
+    key = {"Idempotency-Key": str(uuid4())}
+    with _running_uvicorn(database) as (first_pid, client):
+        created = client.post(PATH, json=REVIEWED, headers=key)
+        assert created.status_code == 201
+        reference = created.json()["reference"]
+
+    with _running_uvicorn(database) as (second_pid, client):
+        assert second_pid != first_pid
+        saved = client.get(f"{PATH}/{reference}")
+        assert saved.status_code == 200
+        assert saved.json() == created.json()
+        replay = client.post(PATH, json=REVIEWED, headers=key)
+        assert replay.status_code == 200
+        assert replay.json() == created.json()
+    assert _count(Settings(database_path=database)) == 1

@@ -84,3 +84,32 @@ def test_generic_route_and_low_confidence_ocr_values_are_withheld():
 def test_clock_time_keeps_printed_fractional_seconds():
     result = parse_ticket([[TicketLine("Arrival time: 14:31:12.345")]], "pdf_text")
     assert result.arrival_local_time.value.isoformat() == "14:31:12.345000"
+
+
+def test_parallel_headings_do_not_assign_departure_values_to_arrival():
+    lines = [
+        TicketLine("Flight: ZZ 631"),
+        TicketLine("DEPARTURE | ARRIVAL"),
+        TicketLine("Airport: BER | --"),
+        TicketLine("Date: 2027-06-15 | --"),
+        TicketLine("Time: 07:05 | --"),
+    ]
+    result = parse_ticket([lines], "pdf_text")
+    assert result.flight_number.value == "ZZ631"
+    for field in (
+        result.arrival_airport,
+        result.arrival_date,
+        result.arrival_local_time,
+    ):
+        assert field.model_dump() == {"status": "uncertain", "value": None}
+
+
+def test_explicit_arrival_airport_can_include_a_terminal():
+    result = parse_ticket(
+        [[TicketLine("Departure airport: VIE | Arrival airport: MUC Terminal 2")]],
+        "pdf_text",
+    )
+    assert result.arrival_airport.model_dump() == {
+        "status": "extracted",
+        "value": "MUC",
+    }

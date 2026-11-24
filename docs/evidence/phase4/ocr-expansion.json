@@ -1,0 +1,266 @@
+{
+  "corpus": "phase4",
+  "scores_by_method": {
+    "overall": {
+      "correct": 14,
+      "uncertain": 6,
+      "unlabeled": 8
+    },
+    "pdf_text": {
+      "correct": 4,
+      "unlabeled": 1,
+      "uncertain": 3
+    },
+    "mixed": {
+      "uncertain": 2,
+      "unlabeled": 5,
+      "correct": 1
+    },
+    "ocr": {
+      "correct": 9,
+      "uncertain": 1,
+      "unlabeled": 2
+    }
+  },
+  "fully_labeled_tickets": 3,
+  "fully_extracted_tickets": 2,
+  "fixtures": [
+    {
+      "fixture": "terminal-layout.pdf",
+      "method": "pdf_text",
+      "expected": {
+        "flight_number": "ZZ471",
+        "arrival_airport": "MUC",
+        "arrival_date": "2027-02-28",
+        "arrival_local_time": "21:25:00"
+      },
+      "observed": {
+        "flight_number": {
+          "status": "extracted",
+          "value": "ZZ471"
+        },
+        "arrival_airport": {
+          "status": "extracted",
+          "value": "MUC"
+        },
+        "arrival_date": {
+          "status": "extracted",
+          "value": "2027-02-28"
+        },
+        "arrival_local_time": {
+          "status": "extracted",
+          "value": "21:25:00"
+        }
+      },
+      "counts": {
+        "correct": 4
+      },
+      "fully_labeled": true,
+      "fully_extracted": true
+    },
+    {
+      "fixture": "parallel-columns.pdf",
+      "method": "mixed",
+      "expected": {
+        "flight_number": "ZZ631",
+        "arrival_airport": null,
+        "arrival_date": null,
+        "arrival_local_time": null
+      },
+      "observed": {
+        "flight_number": {
+          "status": "uncertain",
+          "value": null
+        },
+        "arrival_airport": {
+          "status": "uncertain",
+          "value": null
+        },
+        "arrival_date": {
+          "status": "uncertain",
+          "value": null
+        },
+        "arrival_local_time": {
+          "status": "uncertain",
+          "value": null
+        }
+      },
+      "counts": {
+        "uncertain": 1,
+        "unlabeled": 3
+      },
+      "fully_labeled": false,
+      "fully_extracted": false
+    },
+    {
+      "fixture": "clock-qualifiers.pdf",
+      "method": "mixed",
+      "expected": {
+        "flight_number": "ZZ992",
+        "arrival_airport": "LYS",
+        "arrival_date": null,
+        "arrival_local_time": null
+      },
+      "observed": {
+        "flight_number": {
+          "status": "uncertain",
+          "value": null
+        },
+        "arrival_airport": {
+          "status": "extracted",
+          "value": "LYS"
+        },
+        "arrival_date": {
+          "status": "uncertain",
+          "value": null
+        },
+        "arrival_local_time": {
+          "status": "uncertain",
+          "value": null
+        }
+      },
+      "counts": {
+        "uncertain": 1,
+        "correct": 1,
+        "unlabeled": 2
+      },
+      "fully_labeled": false,
+      "fully_extracted": false
+    },
+    {
+      "fixture": "codeshare.pdf",
+      "method": "pdf_text",
+      "expected": {
+        "flight_number": null,
+        "arrival_airport": "EDI",
+        "arrival_date": "2027-06-14",
+        "arrival_local_time": "09:35:00"
+      },
+      "observed": {
+        "flight_number": {
+          "status": "uncertain",
+          "value": null
+        },
+        "arrival_airport": {
+          "status": "uncertain",
+          "value": "EDI"
+        },
+        "arrival_date": {
+          "status": "uncertain",
+          "value": "2027-06-14"
+        },
+        "arrival_local_time": {
+          "status": "uncertain",
+          "value": "09:35:00"
+        }
+      },
+      "counts": {
+        "unlabeled": 1,
+        "uncertain": 3
+      },
+      "fully_labeled": false,
+      "fully_extracted": false
+    },
+    {
+      "fixture": "dark-board.png",
+      "method": "ocr",
+      "expected": {
+        "flight_number": "ZZ712",
+        "arrival_airport": "BCN",
+        "arrival_date": "2027-05-13",
+        "arrival_local_time": "20:25:00"
+      },
+      "observed": {
+        "flight_number": {
+          "status": "extracted",
+          "value": "ZZ712"
+        },
+        "arrival_airport": {
+          "status": "extracted",
+          "value": "BCN"
+        },
+        "arrival_date": {
+          "status": "extracted",
+          "value": "2027-05-13"
+        },
+        "arrival_local_time": {
+          "status": "extracted",
+          "value": "20:25:00"
+        }
+      },
+      "counts": {
+        "correct": 4
+      },
+      "fully_labeled": true,
+      "fully_extracted": true
+    },
+    {
+      "fixture": "slanted-receipt.jpeg",
+      "method": "ocr",
+      "expected": {
+        "flight_number": "ZZ853",
+        "arrival_airport": "BRS",
+        "arrival_date": "2027-06-05",
+        "arrival_local_time": "06:45:00"
+      },
+      "observed": {
+        "flight_number": {
+          "status": "extracted",
+          "value": "ZZ853"
+        },
+        "arrival_airport": {
+          "status": "extracted",
+          "value": "BRS"
+        },
+        "arrival_date": {
+          "status": "uncertain",
+          "value": null
+        },
+        "arrival_local_time": {
+          "status": "extracted",
+          "value": "06:45:00"
+        }
+      },
+      "counts": {
+        "correct": 3,
+        "uncertain": 1
+      },
+      "fully_labeled": true,
+      "fully_extracted": false
+    },
+    {
+      "fixture": "cropped-ticket.png",
+      "method": "ocr",
+      "expected": {
+        "flight_number": "ZZ428",
+        "arrival_airport": null,
+        "arrival_date": "2027-06-18",
+        "arrival_local_time": null
+      },
+      "observed": {
+        "flight_number": {
+          "status": "extracted",
+          "value": "ZZ428"
+        },
+        "arrival_airport": {
+          "status": "missing",
+          "value": null
+        },
+        "arrival_date": {
+          "status": "extracted",
+          "value": "2027-06-18"
+        },
+        "arrival_local_time": {
+          "status": "missing",
+          "value": null
+        }
+      },
+      "counts": {
+        "correct": 2,
+        "unlabeled": 2
+      },
+      "fully_labeled": false,
+      "fully_extracted": false
+    }
+  ]
+}

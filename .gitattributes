@@ -2,6 +2,6 @@
 frontend/lib/api.types.ts text eol=lf
 
 # Preserve the exact bytes used by the extraction corpus on every platform.
-samples/*.pdf binary
-samples/*.png binary
-samples/*.jpeg binary
+samples/**/*.pdf binary
+samples/**/*.png binary
+samples/**/*.jpeg binary

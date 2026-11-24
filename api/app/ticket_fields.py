@@ -28,6 +28,9 @@ _LABEL = re.compile(
 _INLINE_DIRECTION = re.compile(
     r"\s+(?=(?:ARRIVAL|DEPARTURE)\s+[A-Z]|(?:ARRIVAL|DEPARTURE):)"
 )
+_PARALLEL_HEADINGS = re.compile(
+    r"^(?:DEPARTURE[\s|;/]+ARRIVAL|ARRIVAL[\s|;/]+DEPARTURE)$"
+)
 _FLIGHT = re.compile(r"\b(?:[A-Z][A-Z0-9]|[0-9][A-Z])[ -]?[0-9]{1,4}[A-Z]?\b")
 _ROUTE = re.compile(r"\b[A-Z]{3}\s*(?:->|→|/)\s*[A-Z]{3}\b")
 _MONTHS = {
@@ -101,12 +104,17 @@ def _flights(text: str) -> set[str]:
     return {item for item in normalized if re.fullmatch(FLIGHT_NUMBER_PATTERN, item)}
 
 
-def _airports(text: str) -> set[str]:
+def _airports(text: str, *, explicit_airport: bool) -> set[str]:
     codes = set(re.findall(r"\(([A-Z]{3})\)", text))
     for piece in re.split(r"\s+[/-]\s+(?=[A-Z]{3}\b)", text):
         leading = re.match(
             r"^\s*([A-Z]{3})(?=$|\s*(?:[-–,]|[0-9])|\s+[A-Z]{3}\s+[0-9])", piece
         )
+        if not leading and explicit_airport:
+            leading = re.match(
+                r"^\s*([A-Z]{3})\s+(?:TERMINAL|GATE)\s+(?:[A-Z][0-9]{0,3}|[0-9]{1,3}[A-Z]?)\b",
+                piece,
+            )
         if leading:
             codes.add(leading.group(1))
     return codes - {"UTC", "GMT"}
@@ -185,7 +193,7 @@ class _TicketFields:
         if label in ("TO", "DESTINATION"):
             field = "AIRPORT"
         if field in ("", "AIRPORT"):
-            airports = _airports(value)
+            airports = _airports(value, explicit_airport=field == "AIRPORT")
             self.arrival_airport.record(airports, reliable)
             self.arrival_airport.ambiguous |= field == "AIRPORT" and bool(
                 value and not airports
@@ -208,6 +216,11 @@ class _TicketFields:
         pending: tuple[str, bool] | None = None
         for line in lines:
             text = unicodedata.normalize("NFKC", line.text).upper()
+            if _PARALLEL_HEADINGS.fullmatch(text.strip()):
+                # Flattened rows do not identify which column a bare label belongs to.
+                direction = "parallel"
+                pending = None
+                continue
             for part in re.split(r"[|\t;]", text):
                 for segment in _INLINE_DIRECTION.split(part.strip()):
                     match = _LABEL.match(segment)
@@ -217,7 +230,7 @@ class _TicketFields:
                             self.read(label, segment, label_reliable and line.reliable)
                         elif not direction and _ROUTE.search(segment):
                             self.arrival_airport.unqualified = True
-                        else:
+                        elif direction != "parallel":
                             direction = ""
                         pending = None
                         continue

@@ -106,6 +106,16 @@ The Phase 3 working tree was tested on Windows with Tesseract 5.4 and Chromium t
 
 > Create an original photorealistic editorial travel photograph for a very wide airport transfer booking website hero. View from above the deep navy Aegean waters toward a sunlit Mediterranean coastline, warm pale limestone cliffs and a small coastal city with distant mountains. A single unbranded white commercial airplane banks gently toward the city on the right side, seen from above and slightly behind. Put the aircraft and almost all land in the right half, with generous dark open water across the left half for readable overlaid website text. Wide panoramic framing with the key visual in the middle vertical band so a 3:1 center crop works. Natural late-afternoon haze, warm ivory highlights, restrained teal water, premium and plausible travel photography. No words, typography, graphics, logos, airline marks, watermarks or borders.
 
+## Phase 4 acceptance testing, reliability and usability
+
+- Fixed a confirmed false arrival airport in flattened departure/arrival columns. Added extraction for terminal suffixes on explicitly labeled arrival airports. Both fixes have parser and HTTP regression coverage.
+- Fixed lost keyboard focus when returning to upload and silent acceptance of the first of multiple dropped files. Booking now validates calendar dates before submission and confirmation pages prevent referrer disclosure.
+- Verified SQLite rollback after a real database rejection, retry after failure, and retrieval and idempotent replay across two Uvicorn processes. Verified that real OCR leaves no scratch files or reservation rows and omits the upload filename and passenger marker from the response and captured logs.
+- Ran the local gate on 24 November 2026. **70 API tests, 8 frontend unit tests and 12 Chromium tests passed.** The five required workflows saved simulated reservations. Keyboard, reflow, and automated accessibility checks passed in the tested pages. Hosted CI passed on `be528b8`, the published Phase 3 baseline. Hosted execution of the Phase 4 worktree is pending. [Acceptance evidence and screenshots](phase4-verification.md) · [Phase 3 hosted CI](https://github.com/ThaferAbo/RayRide/actions/runs/45390325875)
+- The original corpus and labels are unchanged and reproduced at **21/27**. The seven independently labeled expansion fixtures scored **14/20**. Neither run returned a confidently wrong labeled value. Both scores are before manual correction. [Original benchmark](evidence/phase4/ocr-original.json) · [Expansion benchmark](evidence/phase4/ocr-expansion.json)
+
+**The local Phase 4 gate passed.** The traceability matrix marks pilot usability and second-machine reproduction open. No human results or Phase 4 hosted results were recorded. [Manual protocols](phase4-manual-protocols.md)
+
 ## Legacy Flutter baseline
 
 Phase 0 ran `flutter test --no-pub --reporter expanded` in a temporary copy against the installed Flutter cache. The only Flutter widget test failed at `test/widget_test.dart:19` because it expected a starter counter with text `0`. Dart analysis exited 0 with 24 deprecation notices, and the cached Flutter web build succeeded. The cached package graph differed from `pubspec.lock`. Phase 1 preserves the Flutter and local .NET applications and uses separate Node and Python checks.

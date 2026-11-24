@@ -26,10 +26,11 @@ export function ReviewStep({ trip, source, reviewed, errors, failure, pending, o
     : source?.warnings.find((warning) => !/^Review the uncertain|^Enter the missing/.test(warning));
 
   return (
-    <section className="panel" aria-labelledby="review-title" aria-busy={pending}>
+    <section className="panel" aria-labelledby="review-title">
       <h2 className="panel-title" id="review-title" tabIndex={-1}>Review your flight details</h2>
       <p className="panel-intro">Check the arrival details against your ticket and choose a destination.</p>
       {reviewNote && <div className="notice notice-review" role="status"><WarningCircleIcon size={18} aria-hidden="true" />{reviewNote}</div>}
+      {pending && <p className="sr-only" role="status">Saving the simulated reservation.</p>}
       <form noValidate onSubmit={onSubmit}>
         <fieldset disabled={pending}>
           <div className="field-grid">

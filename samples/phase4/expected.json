@@ -1,0 +1,30 @@
+{
+  "terminal-layout.pdf": {
+    "values": {"flight_number": "ZZ471", "arrival_airport": "MUC", "arrival_date": "2027-02-28", "arrival_local_time": "21:25:00"},
+    "review": []
+  },
+  "parallel-columns.pdf": {
+    "values": {"flight_number": "ZZ631", "arrival_airport": null, "arrival_date": null, "arrival_local_time": null},
+    "review": ["arrival_airport", "arrival_date", "arrival_local_time"]
+  },
+  "clock-qualifiers.pdf": {
+    "values": {"flight_number": "ZZ992", "arrival_airport": "LYS", "arrival_date": null, "arrival_local_time": null},
+    "review": ["arrival_date", "arrival_local_time"]
+  },
+  "codeshare.pdf": {
+    "values": {"flight_number": null, "arrival_airport": "EDI", "arrival_date": "2027-06-14", "arrival_local_time": "09:35:00"},
+    "review": ["flight_number", "arrival_airport", "arrival_date", "arrival_local_time"]
+  },
+  "dark-board.png": {
+    "values": {"flight_number": "ZZ712", "arrival_airport": "BCN", "arrival_date": "2027-05-13", "arrival_local_time": "20:25:00"},
+    "review": []
+  },
+  "slanted-receipt.jpeg": {
+    "values": {"flight_number": "ZZ853", "arrival_airport": "BRS", "arrival_date": "2027-06-05", "arrival_local_time": "06:45:00"},
+    "review": []
+  },
+  "cropped-ticket.png": {
+    "values": {"flight_number": "ZZ428", "arrival_airport": null, "arrival_date": "2027-06-18", "arrival_local_time": null},
+    "review": ["arrival_airport", "arrival_local_time"]
+  }
+}

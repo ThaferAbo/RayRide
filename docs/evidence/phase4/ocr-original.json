@@ -1,0 +1,298 @@
+{
+  "corpus": "original",
+  "scores_by_method": {
+    "overall": {
+      "correct": 21,
+      "uncertain": 2,
+      "unlabeled": 5,
+      "missing": 4
+    },
+    "pdf_text": {
+      "correct": 4,
+      "unlabeled": 3,
+      "uncertain": 1
+    },
+    "ocr": {
+      "correct": 11,
+      "uncertain": 1
+    },
+    "mixed": {
+      "correct": 6,
+      "unlabeled": 2
+    },
+    "unavailable": {
+      "missing": 4
+    }
+  },
+  "fully_labeled_tickets": 6,
+  "fully_extracted_tickets": 4,
+  "fixtures": [
+    {
+      "fixture": "text-ticket.pdf",
+      "method": "pdf_text",
+      "expected": {
+        "flight_number": "ZZ731",
+        "arrival_airport": "AYT",
+        "arrival_date": "2026-12-03",
+        "arrival_local_time": "14:10:00"
+      },
+      "observed": {
+        "flight_number": {
+          "status": "extracted",
+          "value": "ZZ731"
+        },
+        "arrival_airport": {
+          "status": "extracted",
+          "value": "AYT"
+        },
+        "arrival_date": {
+          "status": "extracted",
+          "value": "2026-12-03"
+        },
+        "arrival_local_time": {
+          "status": "extracted",
+          "value": "14:10:00"
+        }
+      },
+      "counts": {
+        "correct": 4
+      },
+      "fully_labeled": true,
+      "fully_extracted": true
+    },
+    {
+      "fixture": "scanned-ticket.pdf",
+      "method": "ocr",
+      "expected": {
+        "flight_number": "ZZ731",
+        "arrival_airport": "AYT",
+        "arrival_date": "2026-12-03",
+        "arrival_local_time": "14:10:00"
+      },
+      "observed": {
+        "flight_number": {
+          "status": "extracted",
+          "value": "ZZ731"
+        },
+        "arrival_airport": {
+          "status": "extracted",
+          "value": "AYT"
+        },
+        "arrival_date": {
+          "status": "extracted",
+          "value": "2026-12-03"
+        },
+        "arrival_local_time": {
+          "status": "extracted",
+          "value": "14:10:00"
+        }
+      },
+      "counts": {
+        "correct": 4
+      },
+      "fully_labeled": true,
+      "fully_extracted": true
+    },
+    {
+      "fixture": "image-ticket.png",
+      "method": "ocr",
+      "expected": {
+        "flight_number": "QX482",
+        "arrival_airport": "FRA",
+        "arrival_date": "2026-12-08",
+        "arrival_local_time": "10:40:00"
+      },
+      "observed": {
+        "flight_number": {
+          "status": "uncertain",
+          "value": null
+        },
+        "arrival_airport": {
+          "status": "extracted",
+          "value": "FRA"
+        },
+        "arrival_date": {
+          "status": "extracted",
+          "value": "2026-12-08"
+        },
+        "arrival_local_time": {
+          "status": "extracted",
+          "value": "10:40:00"
+        }
+      },
+      "counts": {
+        "uncertain": 1,
+        "correct": 3
+      },
+      "fully_labeled": true,
+      "fully_extracted": false
+    },
+    {
+      "fixture": "image-ticket.jpeg",
+      "method": "ocr",
+      "expected": {
+        "flight_number": "6E318",
+        "arrival_airport": "AMS",
+        "arrival_date": "2026-12-09",
+        "arrival_local_time": "08:05:00"
+      },
+      "observed": {
+        "flight_number": {
+          "status": "extracted",
+          "value": "6E318"
+        },
+        "arrival_airport": {
+          "status": "extracted",
+          "value": "AMS"
+        },
+        "arrival_date": {
+          "status": "extracted",
+          "value": "2026-12-09"
+        },
+        "arrival_local_time": {
+          "status": "extracted",
+          "value": "08:05:00"
+        }
+      },
+      "counts": {
+        "correct": 4
+      },
+      "fully_labeled": true,
+      "fully_extracted": true
+    },
+    {
+      "fixture": "ambiguous-ticket.pdf",
+      "method": "pdf_text",
+      "expected": {
+        "flight_number": null,
+        "arrival_airport": null,
+        "arrival_date": "2026-12-10",
+        "arrival_local_time": null
+      },
+      "observed": {
+        "flight_number": {
+          "status": "uncertain",
+          "value": null
+        },
+        "arrival_airport": {
+          "status": "uncertain",
+          "value": null
+        },
+        "arrival_date": {
+          "status": "uncertain",
+          "value": "2026-12-10"
+        },
+        "arrival_local_time": {
+          "status": "uncertain",
+          "value": null
+        }
+      },
+      "counts": {
+        "unlabeled": 3,
+        "uncertain": 1
+      },
+      "fully_labeled": false,
+      "fully_extracted": false
+    },
+    {
+      "fixture": "missing-fields.pdf",
+      "method": "mixed",
+      "expected": {
+        "flight_number": "ZZ154",
+        "arrival_airport": "AYT",
+        "arrival_date": null,
+        "arrival_local_time": null
+      },
+      "observed": {
+        "flight_number": {
+          "status": "extracted",
+          "value": "ZZ154"
+        },
+        "arrival_airport": {
+          "status": "extracted",
+          "value": "AYT"
+        },
+        "arrival_date": {
+          "status": "missing",
+          "value": null
+        },
+        "arrival_local_time": {
+          "status": "missing",
+          "value": null
+        }
+      },
+      "counts": {
+        "correct": 2,
+        "unlabeled": 2
+      },
+      "fully_labeled": false,
+      "fully_extracted": false
+    },
+    {
+      "fixture": "mixed-ticket.pdf",
+      "method": "mixed",
+      "expected": {
+        "flight_number": "WN210",
+        "arrival_airport": "MAD",
+        "arrival_date": "2026-12-14",
+        "arrival_local_time": "18:45:00"
+      },
+      "observed": {
+        "flight_number": {
+          "status": "extracted",
+          "value": "WN210"
+        },
+        "arrival_airport": {
+          "status": "extracted",
+          "value": "MAD"
+        },
+        "arrival_date": {
+          "status": "extracted",
+          "value": "2026-12-14"
+        },
+        "arrival_local_time": {
+          "status": "extracted",
+          "value": "18:45:00"
+        }
+      },
+      "counts": {
+        "correct": 4
+      },
+      "fully_labeled": true,
+      "fully_extracted": true
+    },
+    {
+      "fixture": "unreadable-ticket.png",
+      "method": "unavailable",
+      "expected": {
+        "flight_number": "ZZ969",
+        "arrival_airport": "FCO",
+        "arrival_date": "2026-12-19",
+        "arrival_local_time": "21:20:00"
+      },
+      "observed": {
+        "flight_number": {
+          "status": "missing",
+          "value": null
+        },
+        "arrival_airport": {
+          "status": "missing",
+          "value": null
+        },
+        "arrival_date": {
+          "status": "missing",
+          "value": null
+        },
+        "arrival_local_time": {
+          "status": "missing",
+          "value": null
+        }
+      },
+      "counts": {
+        "missing": 4
+      },
+      "fully_labeled": true,
+      "fully_extracted": false
+    }
+  ]
+}
