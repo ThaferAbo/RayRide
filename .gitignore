@@ -18,10 +18,12 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Machine-specific editor settings. Shared launch, task, and extension files
+# can still be committed.
+**/.vscode/settings.json
+**/.vscode/*.local.json
+/.run/*
+!/.run/main.dart.run.xml
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -31,7 +33,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
-/coverage/
+coverage/
 
 # Symbolication related
 app.*.symbols
@@ -44,16 +46,68 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# AI/Agent Data
+# Local planning and private agent settings
+/IMPLEMENTATION_PLAN.md
+/AGENTS.md
+AGENTS.local.md
 .gemini/
+/.codex/auth.json
+/.codex/config.local.toml
+/.codex/history.jsonl
+/.codex/sessions/
+/.claude/.credentials.json
+/.claude/settings.local.json
+/.mcp.local.json
+
+# Local environment, secrets, and signing keys
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.*.sample
+!.env.template
+!.env.*.template
+/.secrets/
+secrets.local.*
+credentials.local.*
+*.key
+*-key.pem
+private.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Local SQLite databases and their journal files
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Python environments and caches
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# JavaScript dependencies, build outputs, and test reports
+node_modules/
+.next/
+*.tsbuildinfo
+/frontend/out/
+/frontend/dist/
+/frontend/playwright-report/
+/frontend/playwright/.cache/
+/frontend/test-results/
 
 # Temporary / Output Text Files
 build_error.txt
 flutter_doctor_output.txt
 commit_msg.txt
 
-# IDE Specific
-.run/
-
-# Backend API
-Backend/
+# Local legacy .NET course backend
+/Backend/
